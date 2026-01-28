@@ -12,11 +12,18 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- 2. FUNGSI WAKTU WIB ---
+# --- 2. LOGIKA SESSION PERSISTENCE (Biar Gak Minta Login Pas Refresh) ---
+# Kita inisialisasi session state di awal agar tidak terhapus saat refresh
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+if 'user_name' not in st.session_state:
+    st.session_state.user_name = ""
+
+# --- 3. FUNGSI WAKTU WIB ---
 def get_wib_now():
     return datetime.now() + timedelta(hours=7)
 
-# --- 3. DATABASE CONNECTION ---
+# --- 4. DATABASE CONNECTION ---
 def get_connection():
     return pymysql.connect(
         host=st.secrets["tidb"]["host"],
@@ -28,7 +35,7 @@ def get_connection():
         ssl={'ca': certifi.where()}
     )
 
-# --- 4. CSS CUSTOM (PREMIUM UI v4.0) ---
+# --- 5. CSS CUSTOM (PREMIUM UI v4.0) ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
@@ -62,7 +69,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 5. LOGIKA AUDIT LOG ---
+# --- 6. LOGIKA AUDIT LOG ---
 if 'audit_logs' not in st.session_state:
     st.session_state.audit_logs = []
 
@@ -70,19 +77,19 @@ def add_log(action, details):
     waktu = get_wib_now().strftime('%H:%M:%S')
     st.session_state.audit_logs.insert(0, {
         "Waktu": waktu,
-        "User": st.session_state.user_name.upper() if 'user_name' in st.session_state else "GUEST",
+        "User": st.session_state.user_name.upper() if st.session_state.user_name else "GUEST",
         "Aksi": action, "Detail": details
     })
 
-# --- 6. SIDEBAR MANAGEMENT ---
+# --- 7. SIDEBAR MANAGEMENT ---
 with st.sidebar:
     st.markdown("<h1 style='text-align: center; color: white; font-size: 22px;'>🎫 IT-KEMASAN PRO</h1>", unsafe_allow_html=True)
     wib = get_wib_now()
     st.markdown(f'<div class="clock-box"><div class="digital-clock">{wib.strftime("%H:%M:%S")}</div><div style="color: white; opacity:0.7; font-size:12px;">{wib.strftime("%A, %d %b %Y")}</div></div>', unsafe_allow_html=True)
 
-    if 'logged_in' not in st.session_state: st.session_state.logged_in = False
-
+    # LOGIN LOGIC IN SIDEBAR
     if not st.session_state.logged_in:
+        st.markdown("### 🔐 User Login")
         u = st.text_input("Username")
         p = st.text_input("Password", type="password")
         if st.button("🔓 SIGN IN", use_container_width=True, type="primary"):
@@ -91,19 +98,24 @@ with st.sidebar:
                 st.session_state.user_name = u
                 add_log("LOGIN", "Masuk Dashboard")
                 st.rerun()
+            else:
+                st.error("Login Gagal!")
     else:
-        st.markdown(f"<p style='text-align: center;'>Operator: <b style='color:#10b981;'>{st.session_state.user_name.upper()}</b></p>", unsafe_allow_html=True)
+        st.markdown(f"<div style='text-align: center; margin-bottom: 10px;'>Operator: <b style='color:#10b981;'>{st.session_state.user_name.upper()}</b></div>", unsafe_allow_html=True)
         menu = st.selectbox("📂 MENU NAVIGASI", ["Dashboard Monitor", "Export & Reporting", "Security Log", "Buat Tiket Baru"])
+        
+        st.markdown("---")
         if st.button("🔒 LOGOUT", use_container_width=True):
             st.session_state.logged_in = False
+            st.session_state.user_name = ""
             st.rerun()
 
-# --- 7. MENU LOGIC ---
+# --- 8. MENU LOGIC ---
 if not st.session_state.logged_in:
     menu = "Buat Tiket Baru"
 
 # --- DASHBOARD ---
-if menu == "Dashboard Monitor":
+if menu == "Dashboard Monitor" and st.session_state.logged_in:
     st.markdown("<h2 style='color: white;'>📊 Monitoring Center</h2>", unsafe_allow_html=True)
     db = get_connection()
     df = pd.read_sql("SELECT * FROM tickets ORDER BY id DESC", db)
@@ -112,7 +124,6 @@ if menu == "Dashboard Monitor":
     if 'waktu_selesai' in df.columns:
         df['waktu_selesai'] = df.apply(lambda r: get_wib_now().strftime('%Y-%m-%d %H:%M:%S') if (r['status'] == 'Solved' and (r['waktu_selesai'] is None or str(r['waktu_selesai']) == 'None')) else r['waktu_selesai'], axis=1)
 
-    # --- REVISI NAMA KOLOM (HANYA UNTUK TAMPILAN) ---
     df_display = df.rename(columns={
         'nama_user': 'Nama Teknisi',
         'masalah': 'Problem',
@@ -120,7 +131,7 @@ if menu == "Dashboard Monitor":
         'waktu_selesai': 'Selesai Pada'
     })
 
-    q = st.text_input("🔍 Cari Tiket/Teknisi/Problem...", placeholder="Filter data...")
+    q = st.text_input("🔍 Filter Dashboard", placeholder="Cari data...")
     if q: df_display = df_display[df_display.apply(lambda r: r.astype(str).str.contains(q, case=False).any(), axis=1)]
 
     c1, c2, c3, c4 = st.columns(4)
@@ -156,6 +167,7 @@ if menu == "Dashboard Monitor":
                     add_log("UPDATE", f"ID #{id_up} diubah ke {st_up}")
                     st.toast(f"ID #{id_up} Updated!")
                     st.rerun()
+
     with col_del:
         with st.expander("🗑️ Hapus Tiket"):
             if not df.empty:
@@ -170,7 +182,7 @@ if menu == "Dashboard Monitor":
                     st.rerun()
 
 # --- EXPORT & REPORTING ---
-elif menu == "Export & Reporting":
+elif menu == "Export & Reporting" and st.session_state.logged_in:
     st.markdown("<h2 style='color: white;'>📂 Financial & Operations Report</h2>", unsafe_allow_html=True)
     db = get_connection()
     df_ex = pd.read_sql("SELECT * FROM tickets", db)
@@ -180,7 +192,7 @@ elif menu == "Export & Reporting":
     st.download_button("📥 DOWNLOAD CSV (EXCEL)", csv, f"Report_IT_{get_wib_now().strftime('%Y%m%d')}.csv", "text/csv", use_container_width=True)
 
 # --- SECURITY LOG ---
-elif menu == "Security Log":
+elif menu == "Security Log" and st.session_state.logged_in:
     st.markdown("<h2 style='color: white;'>🛡️ Security Audit Log</h2>", unsafe_allow_html=True)
     if st.session_state.audit_logs:
         st.dataframe(pd.DataFrame(st.session_state.audit_logs), use_container_width=True, hide_index=True)
