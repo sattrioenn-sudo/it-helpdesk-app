@@ -198,7 +198,7 @@ elif menu == "Buat Tiket Baru":
                 if user and issue:
                     db = get_connection()
                     cur = db.cursor()
-                    cur.execute("INSERT INTO tickets (nama_user, cabang, masalah, prioritas, status) VALUES (%s,%s,%s,%s,'Open')", (user, cabang, issue, prio))
+                    cur.execute("INSERT INTO tickets (nama_user, cabang, problem, prioritas, status) VALUES (%s,%s,%s,%s,'Open')", (user, cabang, issue, prio))
                     db.close()
                     st.success("Laporan berhasil dikirim!")
                     st.balloons()
