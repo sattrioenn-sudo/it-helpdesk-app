@@ -12,49 +12,50 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CUSTOM CSS (DARK MODE FRIENDLY & NEUMORPHISM STYLE) ---
+# --- CUSTOM CSS (ADAPTIVE THEME) ---
+# Menggunakan variabel internal Streamlit agar support Dark & Light Mode
 st.markdown("""
     <style>
-    /* Global Background */
-    .main { background-color: #f0f2f6; }
-    
-    /* Custom Sidebar */
-    [data-testid="stSidebar"] {
-        background-color: #0e1117;
-        color: white;
+    /* Mengikuti warna background tema user */
+    .main {
+        padding: 2rem;
     }
     
-    /* Header Styling */
-    .main-header {
-        font-size: 36px;
-        font-weight: 800;
-        color: #1E3A8A;
-        text-align: center;
-        margin-bottom: 20px;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    /* Card Styling */
-    .stMetric {
-        background-color: #ffffff;
-        padding: 20px;
+    /* Card Metric yang Adaptif */
+    div[data-testid="metric-container"] {
+        background-color: rgba(128, 128, 128, 0.1); /* Transparan adaptif */
+        border: 1px solid rgba(128, 128, 128, 0.2);
+        padding: 15px;
         border-radius: 15px;
-        box-shadow: 5px 5px 15px #d1d9e6, -5px -5px 15px #ffffff;
-        border: none !important;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
-    
-    /* Form Styling */
-    .stForm {
-        background-color: white;
-        padding: 30px;
+
+    /* Judul Utama yang menyesuaikan warna teks tema */
+    .main-header {
+        font-size: 32px;
+        font-weight: 800;
+        text-align: center;
+        margin-bottom: 25px;
+        color: var(--text-color); /* Otomatis putih di dark, hitam di light */
+    }
+
+    /* Styling Form agar tetap kontras */
+    [data-testid="stForm"] {
+        border: 1px solid rgba(128, 128, 128, 0.3);
         border-radius: 20px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+        padding: 20px;
+    }
+
+    /* Mempercantik Sidebar */
+    [data-testid="stSidebarNav"] {
+        padding-top: 20px;
     }
     
-    /* Status Badge Colors */
-    .status-open { color: #ef4444; font-weight: bold; }
-    .status-progress { color: #f59e0b; font-weight: bold; }
-    .status-solved { color: #10b981; font-weight: bold; }
+    /* Warna Button Primary */
+    .stButton>button {
+        border-radius: 10px;
+        font-weight: 600;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -70,168 +71,120 @@ def get_connection():
         ssl={'ca': certifi.where()}
     )
 
-# --- FUNGSI LOGIN ---
+# --- LOGIN SYSTEM ---
 def login():
     with st.sidebar:
-        st.markdown("<h1 style='text-align: center; color: white;'>🎫 IT-PRO</h1>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #94a3b8;'>Enterprise Support System</p>", unsafe_allow_html=True)
-        st.divider()
-        
+        st.markdown("<h2 style='text-align: center;'>🎫 IT-PRO</h2>", unsafe_allow_html=True)
         if 'logged_in' not in st.session_state:
             st.session_state.logged_in = False
         
         if not st.session_state.logged_in:
-            st.subheader("🔐 Staff Access")
+            st.write("---")
             user_input = st.text_input("Username")
             pw_input = st.text_input("Password", type="password")
-            if st.button("Sign In", use_container_width=True, type="primary"):
+            if st.button("Login", use_container_width=True, type="primary"):
                 users_dict = st.secrets["auth"]
                 if user_input in users_dict and pw_input == users_dict[user_input]:
                     st.session_state.logged_in = True
                     st.session_state.user_name = user_input
                     st.rerun()
                 else:
-                    st.error("Access Denied")
+                    st.error("Gagal Login")
         else:
-            st.markdown(f"👤 **Operator:** {st.session_state.user_name.capitalize()}")
+            st.info(f"User: **{st.session_state.user_name.upper()}**")
             if st.button("Logout", use_container_width=True):
                 st.session_state.logged_in = False
                 st.rerun()
 
 login()
-st.sidebar.divider()
 
-# --- LOGIKA NAVIGASI ---
+# --- NAVIGASI ---
 if st.session_state.logged_in:
-    menu = st.sidebar.selectbox("📂 MENU UTAMA", ["Daftar Tiket", "Statistik", "Buat Tiket", "Management User"])
+    menu = st.sidebar.selectbox("📂 MENU", ["Daftar Tiket", "Statistik", "Buat Tiket", "Management User"])
 else:
     menu = "Buat Tiket"
-    st.sidebar.info("Gunakan login admin untuk akses dashboard monitoring.")
 
-# --- MENU 1: BUAT TIKET (UI Modern Form) ---
+# --- MENU 1: BUAT TIKET ---
 if menu == "Buat Tiket":
-    st.markdown("<div class='main-header'>📝 Submit New Support Ticket</div>", unsafe_allow_html=True)
+    st.markdown("<div class='main-header'>📝 Submit Support Ticket</div>", unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         with st.form("ticket_form", clear_on_submit=True):
-            user = st.text_input("👤 Nama User / Departemen", placeholder="Contoh: Ahmad - Finance")
-            cabang = st.selectbox("🏢 Cabang Lokasi", st.secrets["master"]["daftar_cabang"])
-            issue = st.text_area("🛠 Detail Kendala IT", placeholder="Jelaskan masalah Anda secara detail...")
+            user = st.text_input("👤 Nama / Dept")
+            cabang = st.selectbox("🏢 Cabang", st.secrets["master"]["daftar_cabang"])
+            issue = st.text_area("🛠 Detail Kendala")
+            priority = st.select_slider("🔥 Prioritas", options=["Low", "Medium", "High"])
             
-            c_left, c_right = st.columns(2)
-            priority = c_left.select_slider("🔥 Prioritas", options=["Low", "Medium", "High"])
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            submitted = st.form_submit_button("🚀 KIRIM LAPORAN", use_container_width=True)
-            
-            if submitted:
+            if st.form_submit_button("🚀 KIRIM LAPORAN", use_container_width=True):
                 if user and issue:
-                    try:
-                        db = get_connection()
-                        cursor = db.cursor()
-                        cursor.execute("INSERT INTO tickets (nama_user, cabang, masalah, prioritas, status) VALUES (%s, %s, %s, %s, 'Open')", (user, cabang, issue, priority))
-                        db.close()
-                        st.success("✅ Berhasil! Tiket Anda sedang dalam antrean tim IT.")
-                        st.balloons()
-                    except Exception as e:
-                        st.error(f"Database Error: {e}")
-                else:
-                    st.warning("⚠️ Harap lengkapi semua field!")
+                    db = get_connection()
+                    cursor = db.cursor()
+                    cursor.execute("INSERT INTO tickets (nama_user, cabang, masalah, prioritas, status) VALUES (%s, %s, %s, %s, 'Open')", (user, cabang, issue, priority))
+                    db.close()
+                    st.success("Tiket Berhasil Dikirim!")
+                    st.balloons()
 
-# --- MENU 2: DAFTAR TIKET (Admin Dashboard) ---
+# --- MENU 2: DAFTAR TIKET ---
 elif menu == "Daftar Tiket" and st.session_state.logged_in:
-    st.markdown(f"<div class='main-header'>📊 IT Monitoring Center</div>", unsafe_allow_html=True)
+    st.markdown("<div class='main-header'>📊 Monitoring Dashboard</div>", unsafe_allow_html=True)
     
     db = get_connection()
     df = pd.read_sql("SELECT id, nama_user, cabang, masalah, prioritas, status, waktu FROM tickets ORDER BY id DESC", db)
     db.close()
 
-    # Dashboard Metrics
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("📦 Total Tiket", len(df))
-    m2.metric("🔴 Open", len(df[df['status'] == 'Open']), delta_color="inverse")
-    m3.metric("🟡 In Progress", len(df[df['status'] == 'In Progress']))
-    m4.metric("🟢 Solved", len(df[df['status'] == 'Solved']))
+    m1.metric("Total", len(df))
+    m2.metric("Open", len(df[df['status'] == 'Open']))
+    m3.metric("Progress", len(df[df['status'] == 'In Progress']))
+    m4.metric("Solved", len(df[df['status'] == 'Solved']))
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Table View dengan Styling
-    st.subheader("📑 Database Antrean Tiket")
-    st.dataframe(
-        df, 
-        use_container_width=True, 
-        hide_index=True,
-        column_config={
-            "id": "ID",
-            "nama_user": "User",
-            "cabang": "Lokasi",
-            "masalah": "Deskripsi Masalah",
-            "prioritas": st.column_config.SelectboxColumn("Priority", options=["Low", "Medium", "High"]),
-            "status": st.column_config.TextColumn("Status"),
-            "waktu": "Waktu Masuk"
-        }
-    )
+    st.write("---")
+    st.dataframe(df, use_container_width=True, hide_index=True)
 
     # Action Panel
-    st.divider()
-    act1, act2 = st.columns(2)
-    
-    with act1:
-        with st.expander("🔄 Update Status Pekerjaan"):
+    c1, c2 = st.columns(2)
+    with c1:
+        with st.expander("🔄 Update Status"):
             if not df.empty:
-                id_upd = st.selectbox("Pilih ID Tiket", df['id'].tolist(), key="upd")
-                new_status = st.select_slider("Set Status Ke:", options=["Open", "In Progress", "Solved", "Closed"])
-                if st.button("Konfirmasi Update", use_container_width=True, type="primary"):
+                id_upd = st.selectbox("ID Tiket", df['id'].tolist(), key="upd")
+                new_status = st.selectbox("Status", ["Open", "In Progress", "Solved", "Closed"])
+                if st.button("Simpan", type="primary"):
                     db = get_connection()
                     cursor = db.cursor()
                     now = datetime.now().strftime('%Y-%m-%d %H:%M:%S') if new_status in ["Solved", "Closed"] else None
                     cursor.execute("UPDATE tickets SET status=%s, waktu_selesai=%s WHERE id=%s", (new_status, now, id_upd))
                     db.close()
-                    st.success(f"Tiket #{id_upd} diperbarui!")
                     st.rerun()
-
-    with act2:
-        with st.expander("🗑️ Hapus Tiket (Gunakan Hati-hati)"):
+    with c2:
+        with st.expander("🗑️ Hapus Data"):
             if not df.empty:
-                id_del = st.selectbox("Pilih ID Tiket", df['id'].tolist(), key="del")
-                st.error("Tindakan ini permanen dan tidak bisa dibatalkan.")
-                if st.button("HAPUS SEKARANG", use_container_width=True):
+                id_del = st.selectbox("ID Tiket", df['id'].tolist(), key="del")
+                if st.button("Hapus Permanen"):
                     db = get_connection()
                     cursor = db.cursor()
                     cursor.execute("DELETE FROM tickets WHERE id=%s", (id_del))
                     db.close()
-                    st.toast(f"Tiket #{id_del} Dihapus!")
                     st.rerun()
 
 # --- MENU 3: STATISTIK ---
 elif menu == "Statistik" and st.session_state.logged_in:
-    st.markdown("<div class='main-header'>📈 IT Support Analytics</div>", unsafe_allow_html=True)
+    st.markdown("<div class='main-header'>📈 IT Performance</div>", unsafe_allow_html=True)
     db = get_connection()
-    df_s = pd.read_sql("SELECT status, cabang, prioritas FROM tickets", db)
+    df_s = pd.read_sql("SELECT status, cabang FROM tickets", db)
     db.close()
-
+    
     if not df_s.empty:
-        t1, t2 = st.tabs(["📊 Lokasi & Status", "🔥 Analisis Prioritas"])
-        with t1:
-            c1, c2 = st.columns(2)
-            c1.markdown("### Beban per Cabang")
-            c1.bar_chart(df_s['cabang'].value_counts())
-            c2.markdown("### Distribusi Status")
-            c2.area_chart(df_s['status'].value_counts())
-        with t2:
-            st.markdown("### Level Urgensi Tiket")
-            st.line_chart(df_s['prioritas'].value_counts())
-    else:
-        st.info("Belum ada data untuk dianalisis.")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write("**Beban per Cabang**")
+            st.bar_chart(df_s['cabang'].value_counts())
+        with col2:
+            st.write("**Status Tiket**")
+            st.bar_chart(df_s['status'].value_counts())
 
 # --- MENU 4: MANAGEMENT USER ---
 elif menu == "Management User" and st.session_state.logged_in:
-    st.markdown("<div class='main-header'>👤 User Management Directory</div>", unsafe_allow_html=True)
+    st.markdown("<div class='main-header'>👤 User Management</div>", unsafe_allow_html=True)
     users = st.secrets["auth"]
-    
-    col_a, col_b, col_c = st.columns([1, 2, 1])
-    with col_b:
-        st.info("💡 Username & Password dikelola melalui Streamlit Secrets.")
-        user_list = [{"No": i+1, "Username": u, "Role": "Administrator IT"} for i, u in enumerate(users)]
-        st.table(user_list)
+    st.table([{"Username": u, "Role": "Admin"} for u in users])
