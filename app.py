@@ -116,6 +116,13 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
     df = pd.read_sql("SELECT * FROM tickets ORDER BY id DESC", db)
     db.close()
 
+    # --- PERBAIKAN NONE PADA WAKTU SELESAI ---
+    if 'waktu_selesai' in df.columns:
+        df['waktu_selesai'] = df.apply(
+            lambda r: get_wib_now().strftime('%Y-%m-%d %H:%M:%S') if (r['status'] == 'Solved' and (r['waktu_selesai'] is None or str(r['waktu_selesai']) == 'None')) else r['waktu_selesai'],
+            axis=1
+        )
+
     # REVISI: Ganti nama_user menjadi Nama Teknisi di tampilan
     df_display = df.rename(columns={'nama_user': 'Nama Teknisi'})
 
@@ -142,7 +149,12 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
                 if st.button("SIMPAN PERUBAHAN", type="primary", use_container_width=True):
                     db = get_connection()
                     cur = db.cursor()
-                    cur.execute("UPDATE tickets SET status=%s WHERE id=%s", (st_up, id_up))
+                    # OTOMATIS ISI WAKTU JIKA SOLVED
+                    if st_up == "Solved":
+                        waktu_fix = get_wib_now().strftime('%Y-%m-%d %H:%M:%S')
+                        cur.execute("UPDATE tickets SET status=%s, waktu_selesai=%s WHERE id=%s", (st_up, waktu_fix, id_up))
+                    else:
+                        cur.execute("UPDATE tickets SET status=%s WHERE id=%s", (st_up, id_up))
                     db.close()
                     add_log("UPDATE", f"ID #{id_up} diubah ke {st_up}")
                     st.toast("Status Berhasil Diperbarui!")
@@ -190,7 +202,6 @@ elif menu == "Buat Tiket Baru":
                 if user and issue:
                     db = get_connection()
                     cur = db.cursor()
-                    # Pastikan nama kolom di database sesuai (nama_user)
                     cur.execute("INSERT INTO tickets (nama_user, cabang, masalah, prioritas, status) VALUES (%s,%s,%s,%s,'Open')", (user, cabang, issue, prio))
                     db.close()
                     st.success("Tiket Anda telah masuk ke sistem antrean IT.")
