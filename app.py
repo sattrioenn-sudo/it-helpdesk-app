@@ -31,12 +31,7 @@ def get_connection():
 # --- 4. CSS CUSTOM (PREMIUM UI) ---
 st.markdown("""
     <style>
-    /* Gradient Background */
-    .stApp {
-        background: radial-gradient(circle at top right, #0e1117, #1c2533);
-    }
-    
-    /* Glassmorphism Card */
+    .stApp { background: radial-gradient(circle at top right, #0e1117, #1c2533); }
     div[data-testid="metric-container"] {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.1);
@@ -44,14 +39,10 @@ st.markdown("""
         padding: 20px; border-radius: 15px;
         color: white !important;
     }
-    
-    /* Sidebar Styling */
     section[data-testid="stSidebar"] {
         background-color: #0e1117 !important;
         border-right: 1px solid rgba(255, 255, 255, 0.1);
     }
-    
-    /* Digital Clock Premium */
     .clock-box {
         background: linear-gradient(135deg, #1d4ed8 0%, #10b981 100%);
         padding: 15px; border-radius: 12px; text-align: center;
@@ -61,14 +52,7 @@ st.markdown("""
         font-family: 'JetBrains Mono', monospace;
         color: white; font-size: 28px; font-weight: 800;
     }
-    
-    /* Dataframe Styling */
-    .stDataFrame {
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 15px;
-    }
-
-    /* Action Center Header */
+    .stDataFrame { border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 15px; }
     .action-header {
         background: rgba(255, 255, 255, 0.05);
         padding: 10px 20px; border-radius: 10px;
@@ -92,8 +76,6 @@ def add_log(action, details):
 # --- 6. SIDEBAR MANAGEMENT ---
 with st.sidebar:
     st.markdown("<h1 style='text-align: center; color: white;'>🎫 IT-Kemasan Group</h1>", unsafe_allow_html=True)
-    
-    # Clock UI
     wib = get_wib_now()
     st.markdown(f"""
         <div class="clock-box">
@@ -105,15 +87,14 @@ with st.sidebar:
     if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 
     if not st.session_state.logged_in:
-        with st.container():
-            u = st.text_input("Username")
-            p = st.text_input("Password", type="password")
-            if st.button("🔓 SIGN IN", use_container_width=True, type="primary"):
-                if u in st.secrets["auth"] and p == st.secrets["auth"][u]:
-                    st.session_state.logged_in = True
-                    st.session_state.user_name = u
-                    add_log("LOGIN", "Masuk Dashboard")
-                    st.rerun()
+        u = st.text_input("Username")
+        p = st.text_input("Password", type="password")
+        if st.button("🔓 SIGN IN", use_container_width=True, type="primary"):
+            if u in st.secrets["auth"] and p == st.secrets["auth"][u]:
+                st.session_state.logged_in = True
+                st.session_state.user_name = u
+                add_log("LOGIN", "Masuk Dashboard")
+                st.rerun()
     else:
         st.markdown(f"<p style='text-align: center;'>Operator: <b>{st.session_state.user_name.upper()}</b></p>", unsafe_allow_html=True)
         if st.button("🔒 LOGOUT", use_container_width=True):
@@ -131,28 +112,26 @@ else:
 # --- MENU: DASHBOARD ---
 if menu == "Dashboard Monitor" and st.session_state.logged_in:
     st.markdown("## 📊 Monitoring Center")
-    
-    # Fetch Data
     db = get_connection()
     df = pd.read_sql("SELECT * FROM tickets ORDER BY id DESC", db)
     db.close()
 
-    # Search Box
-    q = st.text_input("🔍 Search Console", placeholder="Cari Nama, Cabang, atau Detail Kendala...")
-    if q: df = df[df.apply(lambda r: r.astype(str).str.contains(q, case=False).any(), axis=1)]
+    # REVISI: Ganti nama_user menjadi Nama Teknisi di tampilan
+    df_display = df.rename(columns={'nama_user': 'Nama Teknisi'})
 
-    # Top Metrics
+    q = st.text_input("🔍 Search Console", placeholder="Cari Nama Teknisi, Cabang, atau Detail Kendala...")
+    if q: 
+        df_display = df_display[df_display.apply(lambda r: r.astype(str).str.contains(q, case=False).any(), axis=1)]
+
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Total Tickets", len(df))
-    c2.metric("🔴 Open", len(df[df['status'] == 'Open']))
-    c3.metric("🟡 In Progress", len(df[df['status'] == 'In Progress']))
-    c4.metric("🟢 Solved", len(df[df['status'] == 'Solved']))
+    c1.metric("Total Tickets", len(df_display))
+    c2.metric("🔴 Open", len(df_display[df_display['status'] == 'Open']))
+    c3.metric("🟡 In Progress", len(df_display[df_display['status'] == 'In Progress']))
+    c4.metric("🟢 Solved", len(df_display[df_display['status'] == 'Solved']))
 
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.dataframe(df_display, use_container_width=True, hide_index=True)
 
-    # --- ACTION CENTER (Update & Hapus ada di sini) ---
     st.markdown("<div class='action-header'>⚡ Quick Action Center</div>", unsafe_allow_html=True)
-    
     col_up, col_del = st.columns(2)
     
     with col_up:
@@ -183,25 +162,21 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
                     st.toast("Data Terhapus!")
                     st.rerun()
 
-# --- MENU: EXPORT ---
 elif menu == "Export & Reporting" and st.session_state.logged_in:
     st.markdown("## 📂 Financial & Operations Report")
     db = get_connection()
     df_ex = pd.read_sql("SELECT * FROM tickets", db)
     db.close()
-    
     st.dataframe(df_ex, use_container_width=True)
     csv = df_ex.to_csv(index=False).encode('utf-8')
-    st.download_button("📥 DOWNLOAD CSV (EXCEL FRIENDLY)", csv, f"Report_IT_{get_wib_now().strftime('%Y%m%d')}.csv", "text/csv", use_container_width=True)
+    st.download_button("📥 DOWNLOAD CSV", csv, f"Report_IT_{get_wib_now().strftime('%Y%m%d')}.csv", "text/csv", use_container_width=True)
 
-# --- MENU: SECURITY LOG ---
 elif menu == "Security Log" and st.session_state.logged_in:
     st.markdown("## 🛡️ Security Audit Log")
     if st.session_state.audit_logs:
         st.dataframe(pd.DataFrame(st.session_state.audit_logs), use_container_width=True, hide_index=True)
     else: st.info("Belum ada aktivitas terekam.")
 
-# --- MENU: BUAT TIKET ---
 elif menu == "Buat Tiket Baru":
     st.markdown("<h1 style='text-align: center;'>📝 Form Laporan IT</h1>", unsafe_allow_html=True)
     c1, c2, c3 = st.columns([1, 2, 1])
@@ -215,7 +190,8 @@ elif menu == "Buat Tiket Baru":
                 if user and issue:
                     db = get_connection()
                     cur = db.cursor()
-                    cur.execute("INSERT INTO tickets (nama_teknisi, cabang, masalah, prioritas, status) VALUES (%s,%s,%s,%s,'Open')", (user, cabang, issue, prio))
+                    # Pastikan nama kolom di database sesuai (nama_user)
+                    cur.execute("INSERT INTO tickets (nama_user, cabang, masalah, prioritas, status) VALUES (%s,%s,%s,%s,'Open')", (user, cabang, issue, prio))
                     db.close()
                     st.success("Tiket Anda telah masuk ke sistem antrean IT.")
                     st.balloons()
