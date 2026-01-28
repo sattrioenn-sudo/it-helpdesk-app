@@ -8,7 +8,7 @@ from datetime import datetime
 # Konfigurasi halaman
 st.set_page_config(page_title="IT Helpdesk Pro", page_icon="🎫", layout="wide")
 
-# --- FUNGSI LOGIN MULTI-USER (Tanpa Database) ---
+# --- FUNGSI LOGIN MULTI-USER ---
 def login():
     st.sidebar.title("🔐 IT Staff Login")
     if 'logged_in' not in st.session_state:
@@ -19,27 +19,24 @@ def login():
     if not st.session_state.logged_in:
         user_input = st.sidebar.text_input("Username")
         pw_input = st.sidebar.text_input("Password", type="password")
-        
         if st.sidebar.button("Login"):
-            # Mengambil daftar user dari secrets
-            users_dict = st.secrets["auth"] 
-            
-            # Cek apakah user ada dan password cocok
+            # Cek ke list user di secrets
+            users_dict = st.secrets["auth"]
             if user_input in users_dict and pw_input == users_dict[user_input]:
                 st.session_state.logged_in = True
                 st.session_state.user_name = user_input
-                st.sidebar.success(f"Selamat bekerja, {user_input}!")
+                st.sidebar.success(f"Halo {user_input}!")
                 st.rerun()
             else:
-                st.sidebar.error("Username atau Password salah!")
+                st.sidebar.error("Username/Password Salah")
     else:
-        st.sidebar.write(f"Logged in as: **{st.session_state.user_name}**")
+        st.sidebar.write(f"User: **{st.session_state.user_name}**")
         if st.sidebar.button("Logout"):
             st.session_state.logged_in = False
             st.session_state.user_name = ""
             st.rerun()
 
-# --- FUNGSI NOTIFIKASI TELEGRAM ---
+# Fungsi Kirim Notifikasi Telegram
 def send_telegram(user, cabang, issue, priority):
     token = st.secrets["telegram"]["token"]
     chat_id = st.secrets["telegram"]["chat_id"]
@@ -50,7 +47,7 @@ def send_telegram(user, cabang, issue, priority):
     except:
         pass
 
-# --- FUNGSI KONEKSI TIDB ---
+# Fungsi koneksi ke TiDB Cloud
 def get_connection():
     return pymysql.connect(
         host=st.secrets["tidb"]["host"],
@@ -62,18 +59,18 @@ def get_connection():
         ssl={'ca': certifi.where()}
     )
 
-# Eksekusi Login
+# Jalankan Login
 login()
 
 st.sidebar.divider()
-st.sidebar.title("⚙️ Control Center")
+st.sidebar.title("⚙️ IT Control Center")
 
-# Logika Menu berdasarkan Login
+# Filter Menu berdasarkan Login
 if st.session_state.logged_in:
     menu = st.sidebar.radio("Menu", ["Buat Tiket", "Daftar Tiket", "Statistik"])
 else:
     menu = st.sidebar.radio("Menu", ["Buat Tiket"])
-    st.sidebar.info("Login khusus staf IT untuk akses Dashboard.")
+    st.sidebar.info("Login untuk akses Dashboard Admin")
 
 # --- MENU 1: BUAT TIKET ---
 if menu == "Buat Tiket":
@@ -83,6 +80,7 @@ if menu == "Buat Tiket":
         with col_u:
             user = st.text_input("Nama User / Departemen")
         with col_c:
+            # Ambil Cabang dari Secrets (Master Cabang)
             list_cabang = st.secrets["master"]["daftar_cabang"]
             cabang = st.selectbox("Cabang Perusahaan", list_cabang)
             
@@ -98,14 +96,14 @@ if menu == "Buat Tiket":
                 cursor.execute(query, (user, cabang, issue, priority))
                 db.close()
                 send_telegram(user, cabang, issue, priority)
-                st.success(f"Terima kasih {user}, tiket berhasil dikirim!")
+                st.success(f"Tiket dari {cabang} berhasil terkirim!")
                 st.balloons()
             except Exception as e:
-                st.error(f"Gagal koneksi database: {e}")
+                st.error(f"Error Database: {e}")
 
-# --- MENU 2: DAFTAR TIKET (ADMIN) ---
+# --- MENU 2: DAFTAR TIKET (KHUSUS ADMIN) ---
 elif menu == "Daftar Tiket" and st.session_state.logged_in:
-    st.header(f"📊 Dashboard - Operator: {st.session_state.user_name}")
+    st.header(f"📊 Dashboard Monitoring (User: {st.session_state.user_name})")
     db = get_connection()
     df = pd.read_sql("SELECT id, nama_user, cabang, masalah, prioritas, status, waktu as 'Waktu Masuk', waktu_selesai as 'Waktu Selesai' FROM tickets ORDER BY id DESC", db)
     db.close()
@@ -113,26 +111,26 @@ elif menu == "Daftar Tiket" and st.session_state.logged_in:
     if not df.empty:
         c1, c2, c3 = st.columns(3)
         with c1:
-            f_status = st.multiselect("Status", options=df['status'].unique(), default=df['status'].unique())
+            f_status = st.multiselect("Filter Status", options=df['status'].unique(), default=df['status'].unique())
         with c2:
-            f_priority = st.multiselect("Prioritas", options=df['prioritas'].unique(), default=df['prioritas'].unique())
+            f_priority = st.multiselect("Filter Prioritas", options=df['prioritas'].unique(), default=df['prioritas'].unique())
         with c3:
-            f_cabang = st.multiselect("Cabang", options=df['cabang'].unique(), default=df['cabang'].unique())
+            f_cabang = st.multiselect("Filter Cabang", options=df['cabang'].unique(), default=df['cabang'].unique())
 
         filtered_df = df[(df['status'].isin(f_status)) & (df['prioritas'].isin(f_priority)) & (df['cabang'].isin(f_cabang))]
         st.dataframe(filtered_df, use_container_width=True, hide_index=True)
 
         st.divider()
-        st.subheader("✅ Update Status")
+        st.subheader("✅ Update Status & Waktu Selesai")
         if not filtered_df.empty:
             col_id, col_stat, col_btn = st.columns([1, 2, 1])
             with col_id:
-                selected_id = st.selectbox("ID Tiket", filtered_df['id'].tolist())
+                selected_id = st.selectbox("Pilih ID Tiket", filtered_df['id'].tolist())
             with col_stat:
-                new_status = st.selectbox("Status Baru", ["Open", "In Progress", "Solved", "Closed"])
+                new_status = st.selectbox("Ubah Status", ["Open", "In Progress", "Solved", "Closed"])
             with col_btn:
                 st.write("")
-                if st.button("Update"):
+                if st.button("Update Sekarang"):
                     db = get_connection()
                     cursor = db.cursor()
                     if new_status in ["Solved", "Closed"]:
@@ -141,22 +139,25 @@ elif menu == "Daftar Tiket" and st.session_state.logged_in:
                     else:
                         cursor.execute("UPDATE tickets SET status=%s, waktu_selesai=NULL WHERE id=%s", (new_status, selected_id))
                     db.close()
+                    st.toast("Status Diperbarui!")
                     st.rerun()
     else:
-        st.info("Belum ada data tiket.")
+        st.info("Belum ada tiket.")
 
 # --- MENU 3: STATISTIK ---
 elif menu == "Statistik" and st.session_state.logged_in:
     st.header("📈 Analitik Support")
     db = get_connection()
-    df_full = pd.read_sql("SELECT * FROM tickets", db)
+    df_full = pd.read_sql("SELECT status, cabang FROM tickets", db)
     db.close()
 
     if not df_full.empty:
         col1, col2 = st.columns(2)
         with col1:
-            st.write("Tiket per Cabang")
+            st.write("**Total Tiket per Cabang**")
             st.bar_chart(df_full['cabang'].value_counts())
         with col2:
-            st.write("Distribusi Status")
+            st.write("**Distribusi Status Tiket**")
             st.bar_chart(df_full['status'].value_counts())
+    else:
+        st.info("Data belum tersedia.")
