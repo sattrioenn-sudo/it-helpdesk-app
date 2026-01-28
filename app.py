@@ -6,7 +6,7 @@ from datetime import datetime
 
 # --- KONFIGURASI HALAMAN ---
 st.set_page_config(
-    page_title="IT Helpdesk Pro", 
+    page_title="IT Kemasan", 
     page_icon="🎫", 
     layout="wide",
     initial_sidebar_state="expanded"
