@@ -3,6 +3,7 @@ import pymysql
 import pandas as pd
 import certifi
 import requests
+from datetime import datetime
 
 # Konfigurasi halaman
 st.set_page_config(page_title="IT Helpdesk Pro", page_icon="🎫", layout="wide")
@@ -51,20 +52,17 @@ def get_connection():
         ssl={'ca': certifi.where()}
     )
 
-# --- JALANKAN FUNGSI LOGIN ---
 login()
-
 st.sidebar.divider()
 st.sidebar.title("⚙️ IT Control Center")
 
-# Filter Menu berdasarkan status login
 if st.session_state.logged_in:
     menu = st.sidebar.radio("Menu", ["Buat Tiket", "Daftar Tiket", "Statistik"])
 else:
     menu = st.sidebar.radio("Menu", ["Buat Tiket"])
     st.sidebar.info("Login untuk akses Dashboard Admin")
 
-# --- MENU 1: BUAT TIKET (Akses Semua Orang) ---
+# --- MENU 1: BUAT TIKET ---
 if menu == "Buat Tiket":
     st.header("📝 Buat Laporan Baru")
     with st.form("ticket_form", clear_on_submit=True):
@@ -77,46 +75,57 @@ if menu == "Buat Tiket":
             try:
                 db = get_connection()
                 cursor = db.cursor()
+                # Waktu masuk otomatis di-handle oleh database (CURRENT_TIMESTAMP)
                 query = "INSERT INTO tickets (nama_user, masalah, prioritas, status) VALUES (%s, %s, %s, 'Open')"
                 cursor.execute(query, (user, issue, priority))
                 db.close()
                 send_telegram(user, issue, priority)
-                st.success("Tiket terkirim! Tim IT sudah dinotifikasi.")
+                st.success(f"Tiket terkirim pada {datetime.now().strftime('%H:%M:%S')}!")
                 st.balloons()
             except Exception as e:
                 st.error(f"Error: {e}")
 
-# --- MENU 2 & 3: HANYA UNTUK ADMIN ---
+# --- MENU 2: DAFTAR TIKET (ADMIN) ---
 elif menu == "Daftar Tiket" and st.session_state.logged_in:
     st.header("📊 Dashboard Monitoring")
     db = get_connection()
-    df = pd.read_sql("SELECT * FROM tickets ORDER BY waktu DESC", db)
+    # Mengambil data termasuk waktu_selesai
+    df = pd.read_sql("SELECT id, nama_user, masalah, prioritas, status, waktu as 'Waktu Masuk', waktu_selesai as 'Waktu Selesai' FROM tickets ORDER BY id DESC", db)
     db.close()
 
     if not df.empty:
         col1, col2 = st.columns(2)
         with col1:
-            f_status = st.multiselect("Status", options=df['status'].unique(), default=df['status'].unique())
+            f_status = st.multiselect("Filter Status", options=df['status'].unique(), default=df['status'].unique())
         with col2:
-            f_priority = st.multiselect("Prioritas", options=df['prioritas'].unique(), default=df['prioritas'].unique())
+            f_priority = st.multiselect("Filter Prioritas", options=df['prioritas'].unique(), default=df['prioritas'].unique())
 
         filtered_df = df[(df['status'].isin(f_status)) & (df['prioritas'].isin(f_priority))]
         st.dataframe(filtered_df, use_container_width=True, hide_index=True)
 
         st.divider()
-        st.subheader("✅ Update Status")
+        st.subheader("✅ Update Status & Waktu Selesai")
         col_id, col_stat, col_btn = st.columns([1, 2, 1])
         with col_id:
-            selected_id = st.selectbox("ID Tiket", filtered_df['id'].tolist())
+            selected_id = st.selectbox("Pilih ID Tiket", filtered_df['id'].tolist())
         with col_stat:
-            new_status = st.selectbox("Status Baru", ["Open", "In Progress", "Solved", "Closed"])
+            new_status = st.selectbox("Ubah Status", ["Open", "In Progress", "Solved", "Closed"])
         with col_btn:
             st.write("")
-            if st.button("Update"):
+            if st.button("Update Sekarang"):
                 db = get_connection()
                 cursor = db.cursor()
-                cursor.execute("UPDATE tickets SET status=%s WHERE id=%s", (new_status, selected_id))
+                
+                # Jika status diubah ke Solved atau Closed, catat waktu sekarang
+                if new_status in ["Solved", "Closed"]:
+                    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    cursor.execute("UPDATE tickets SET status=%s, waktu_selesai=%s WHERE id=%s", (new_status, now, selected_id))
+                else:
+                    # Jika balik ke Open/In Progress, hapus waktu selesai (reset)
+                    cursor.execute("UPDATE tickets SET status=%s, waktu_selesai=NULL WHERE id=%s", (new_status, selected_id))
+                
                 db.close()
+                st.toast(f"Tiket #{selected_id} diperbarui!")
                 st.rerun()
     else:
         st.info("Belum ada tiket.")
@@ -124,13 +133,13 @@ elif menu == "Daftar Tiket" and st.session_state.logged_in:
 elif menu == "Statistik" and st.session_state.logged_in:
     st.header("📈 Analitik Support")
     db = get_connection()
-    df = pd.read_sql("SELECT status, COUNT(*) as jumlah FROM tickets GROUP BY status", db)
+    df_stat = pd.read_sql("SELECT status, COUNT(*) as jumlah FROM tickets GROUP BY status", db)
     db.close()
 
-    if not df.empty:
+    if not df_stat.empty:
         col1, col2 = st.columns([1, 2])
         with col1:
             st.write("Ringkasan Status")
-            st.table(df)
+            st.table(df_stat)
         with col2:
-            st.bar_chart(df.set_index('status'))
+            st.bar_chart(df_stat.set_index('status'))
