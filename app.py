@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 # --- KONFIGURASI HALAMAN ---
 st.set_page_config(
-    page_title="IT Helpdesk Pro v2.0", 
+    page_title="IT Kemasan", 
     page_icon="🎫", 
     layout="wide",
     initial_sidebar_state="expanded"
@@ -75,7 +75,7 @@ def get_connection():
 
 # --- SIDEBAR & AUTH ---
 with st.sidebar:
-    st.markdown("<h1 style='text-align: center; color: #1d4ed8; margin-bottom:0;'>🎫 IT-PRO</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #1d4ed8; margin-bottom:0;'>🎫 IT-Kemasan Group</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; opacity:0.6; font-size:12px;'>Management System v2.0</p>", unsafe_allow_html=True)
     
     # LIVE CLOCK WIB
