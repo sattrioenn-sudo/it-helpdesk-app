@@ -80,7 +80,7 @@ def add_log(action, details):
 
 # --- 6. SIDEBAR MANAGEMENT ---
 with st.sidebar:
-    st.markdown("<h1 style='text-align: center; color: white; font-size: 22px;'>🎫 IT-KEMASAN PRO</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: white; font-size: 22px;'>🎫 IT-Kemasan Group</h1>", unsafe_allow_html=True)
     wib = get_wib_now()
     st.markdown(f'<div class="clock-box"><div class="digital-clock">{wib.strftime("%H:%M:%S")}</div><div style="color: white; opacity:0.7; font-size:12px;">{wib.strftime("%A, %d %b %Y")}</div></div>', unsafe_allow_html=True)
 
