@@ -2,3 +2,4 @@ streamlit
 pymysql
 pandas
 sqlalchemy
+streamlit-cookies-controller
