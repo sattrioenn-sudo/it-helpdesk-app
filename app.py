@@ -20,7 +20,6 @@ def login():
         user_input = st.sidebar.text_input("Username")
         pw_input = st.sidebar.text_input("Password", type="password")
         if st.sidebar.button("Login"):
-            # Cek ke list user di secrets
             users_dict = st.secrets["auth"]
             if user_input in users_dict and pw_input == users_dict[user_input]:
                 st.session_state.logged_in = True
@@ -30,7 +29,7 @@ def login():
             else:
                 st.sidebar.error("Username/Password Salah")
     else:
-        st.sidebar.write(f"User: **{st.session_state.user_name}**")
+        st.sidebar.write(f"User Active: **{st.session_state.user_name}**")
         if st.sidebar.button("Logout"):
             st.session_state.logged_in = False
             st.session_state.user_name = ""
@@ -59,18 +58,16 @@ def get_connection():
         ssl={'ca': certifi.where()}
     )
 
-# Jalankan Login
 login()
-
 st.sidebar.divider()
 st.sidebar.title("⚙️ IT Control Center")
 
-# Filter Menu berdasarkan Login
+# Logika Menu (Ditambah Management User)
 if st.session_state.logged_in:
-    menu = st.sidebar.radio("Menu", ["Buat Tiket", "Daftar Tiket", "Statistik"])
+    menu = st.sidebar.radio("Menu", ["Buat Tiket", "Daftar Tiket", "Statistik", "Management User"])
 else:
     menu = st.sidebar.radio("Menu", ["Buat Tiket"])
-    st.sidebar.info("Login untuk akses Dashboard Admin")
+    st.sidebar.info("Login untuk akses fitur Admin.")
 
 # --- MENU 1: BUAT TIKET ---
 if menu == "Buat Tiket":
@@ -80,7 +77,6 @@ if menu == "Buat Tiket":
         with col_u:
             user = st.text_input("Nama User / Departemen")
         with col_c:
-            # Ambil Cabang dari Secrets (Master Cabang)
             list_cabang = st.secrets["master"]["daftar_cabang"]
             cabang = st.selectbox("Cabang Perusahaan", list_cabang)
             
@@ -96,14 +92,14 @@ if menu == "Buat Tiket":
                 cursor.execute(query, (user, cabang, issue, priority))
                 db.close()
                 send_telegram(user, cabang, issue, priority)
-                st.success(f"Tiket dari {cabang} berhasil terkirim!")
+                st.success(f"Tiket berhasil dikirim!")
                 st.balloons()
             except Exception as e:
                 st.error(f"Error Database: {e}")
 
-# --- MENU 2: DAFTAR TIKET (KHUSUS ADMIN) ---
+# --- MENU 2: DAFTAR TIKET ---
 elif menu == "Daftar Tiket" and st.session_state.logged_in:
-    st.header(f"📊 Dashboard Monitoring (User: {st.session_state.user_name})")
+    st.header("📊 Dashboard Monitoring")
     db = get_connection()
     df = pd.read_sql("SELECT id, nama_user, cabang, masalah, prioritas, status, waktu as 'Waktu Masuk', waktu_selesai as 'Waktu Selesai' FROM tickets ORDER BY id DESC", db)
     db.close()
@@ -121,7 +117,7 @@ elif menu == "Daftar Tiket" and st.session_state.logged_in:
         st.dataframe(filtered_df, use_container_width=True, hide_index=True)
 
         st.divider()
-        st.subheader("✅ Update Status & Waktu Selesai")
+        st.subheader("✅ Update Status")
         if not filtered_df.empty:
             col_id, col_stat, col_btn = st.columns([1, 2, 1])
             with col_id:
@@ -139,10 +135,7 @@ elif menu == "Daftar Tiket" and st.session_state.logged_in:
                     else:
                         cursor.execute("UPDATE tickets SET status=%s, waktu_selesai=NULL WHERE id=%s", (new_status, selected_id))
                     db.close()
-                    st.toast("Status Diperbarui!")
                     st.rerun()
-    else:
-        st.info("Belum ada tiket.")
 
 # --- MENU 3: STATISTIK ---
 elif menu == "Statistik" and st.session_state.logged_in:
@@ -150,14 +143,41 @@ elif menu == "Statistik" and st.session_state.logged_in:
     db = get_connection()
     df_full = pd.read_sql("SELECT status, cabang FROM tickets", db)
     db.close()
-
     if not df_full.empty:
         col1, col2 = st.columns(2)
         with col1:
-            st.write("**Total Tiket per Cabang**")
             st.bar_chart(df_full['cabang'].value_counts())
         with col2:
-            st.write("**Distribusi Status Tiket**")
             st.bar_chart(df_full['status'].value_counts())
-    else:
-        st.info("Data belum tersedia.")
+
+# --- MENU 4: MANAGEMENT USER (FUNGSI BARU Tanpa DB) ---
+elif menu == "Management User" and st.session_state.logged_in:
+    st.header("👤 Management Staff IT")
+    
+    st.info("""
+    **Info Keamanan:** Karena aplikasi ini menggunakan konfigurasi berbasis *Secrets*, 
+    penambahan atau penghapusan user secara permanen dilakukan melalui dashboard **Streamlit Cloud > Settings > Secrets**.
+    """)
+    
+    # Menampilkan daftar user yang sedang aktif di Secrets
+    users_dict = st.secrets["auth"]
+    user_data = []
+    for username in users_dict:
+        user_data.append({"Username": username, "Role": "IT Support / Admin", "Status": "Active"})
+    
+    df_users = pd.DataFrame(user_data)
+    st.subheader("Daftar User Terdaftar")
+    st.table(df_users)
+    
+    st.divider()
+    st.subheader("Cara Menambah/Edit User:")
+    st.markdown("""
+    1. Buka dashboard **Streamlit Cloud**.
+    2. Pilih aplikasi **it-helpdesk-app**.
+    3. Klik **Settings** -> **Secrets**.
+    4. Cari bagian `[auth]` dan tambahkan baris baru:
+       ```toml
+       nama_staf_baru = "passwordnya"
+       ```
+    5. Klik **Save**. Perubahan akan langsung aktif tanpa perlu push code!
+    """)
