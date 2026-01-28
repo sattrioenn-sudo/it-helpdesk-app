@@ -153,12 +153,6 @@ elif menu == "Statistik" and st.session_state.logged_in:
 # --- MENU 4: MANAGEMENT USER (FUNGSI BARU Tanpa DB) ---
 elif menu == "Management User" and st.session_state.logged_in:
     st.header("👤 Management Staff IT")
-    
-    st.info("""
-    **Info Keamanan:** Karena aplikasi ini menggunakan konfigurasi berbasis *Secrets*, 
-    penambahan atau penghapusan user secara permanen dilakukan melalui dashboard **Streamlit Cloud > Settings > Secrets**.
-    """)
-    
     # Menampilkan daftar user yang sedang aktif di Secrets
     users_dict = st.secrets["auth"]
     user_data = []
@@ -170,14 +164,3 @@ elif menu == "Management User" and st.session_state.logged_in:
     st.table(df_users)
     
     st.divider()
-    st.subheader("Cara Menambah/Edit User:")
-    st.markdown("""
-    1. Buka dashboard **Streamlit Cloud**.
-    2. Pilih aplikasi **it-helpdesk-app**.
-    3. Klik **Settings** -> **Secrets**.
-    4. Cari bagian `[auth]` dan tambahkan baris baru:
-       ```toml
-       nama_staf_baru = "passwordnya"
-       ```
-    5. Klik **Save**. Perubahan akan langsung aktif tanpa perlu push code!
-    """)
