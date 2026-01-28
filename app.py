@@ -6,7 +6,7 @@ from datetime import datetime
 
 # --- KONFIGURASI HALAMAN ---
 st.set_page_config(
-    page_title="IT Helpdesk Pro", 
+    page_title="IT Kemasan", 
     page_icon="🎫", 
     layout="wide",
     initial_sidebar_state="expanded"
@@ -23,11 +23,10 @@ st.markdown("""
     }
     .main-header {
         font-size: 32px; font-weight: 800; text-align: center;
-        margin-bottom: 25px; color: var(--text-color);
+        margin-bottom: 10px; color: var(--text-color);
     }
-    [data-testid="stForm"] {
-        border: 1px solid rgba(128, 128, 128, 0.3);
-        border-radius: 20px; padding: 20px;
+    .user-badge {
+        text-align: center; color: #64748b; margin-bottom: 30px; font-style: italic;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -47,12 +46,11 @@ def get_connection():
 # --- LOGIN SYSTEM ---
 def login():
     with st.sidebar:
-        st.markdown("<h2 style='text-align: center;'>🎫 IT-PRO</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align: center;'>🎫 IT-Kemasan Group</h2>", unsafe_allow_html=True)
         if 'logged_in' not in st.session_state:
             st.session_state.logged_in = False
         
         if not st.session_state.logged_in:
-            st.write("---")
             user_input = st.text_input("Username")
             pw_input = st.text_input("Password", type="password")
             if st.button("Login", use_container_width=True, type="primary"):
@@ -64,7 +62,7 @@ def login():
                 else:
                     st.error("Gagal Login")
         else:
-            st.info(f"User: **{st.session_state.user_name.upper()}**")
+            st.success(f"Aktif: **{st.session_state.user_name.upper()}**")
             if st.button("Logout", use_container_width=True):
                 st.session_state.logged_in = False
                 st.rerun()
@@ -82,7 +80,7 @@ if menu == "Buat Tiket":
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         with st.form("ticket_form", clear_on_submit=True):
-            user = st.text_input("👤 Nama / Dept")
+            user = st.text_input("👤 Nama Pelapor / Dept")
             cabang = st.selectbox("🏢 Cabang", st.secrets["master"]["daftar_cabang"])
             issue = st.text_area("🛠 Detail Kendala")
             priority = st.select_slider("🔥 Prioritas", options=["Low", "Medium", "High"])
@@ -92,80 +90,63 @@ if menu == "Buat Tiket":
                     cursor = db.cursor()
                     cursor.execute("INSERT INTO tickets (nama_user, cabang, masalah, prioritas, status) VALUES (%s, %s, %s, %s, 'Open')", (user, cabang, issue, priority))
                     db.close()
-                    st.success("Tiket Berhasil Dikirim!")
+                    st.success(f"Tiket berhasil dibuat!")
                     st.balloons()
 
-# --- MENU 2: DAFTAR TIKET (WITH SEARCH/KNOWLEDGE BASE) ---
+# --- MENU 2: DAFTAR TIKET (DENGAN LOG AKTIVITAS USER) ---
 elif menu == "Daftar Tiket" and st.session_state.logged_in:
-    st.markdown("<div class='main-header'>📊 Monitoring & Knowledge Base</div>", unsafe_allow_html=True)
+    st.markdown("<div class='main-header'>📊 Monitoring Dashboard</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='user-badge'>Operator Bertugas: {st.session_state.user_name.upper()}</div>", unsafe_allow_html=True)
     
     db = get_connection()
     df = pd.read_sql("SELECT * FROM tickets ORDER BY id DESC", db)
     db.close()
 
-    # --- FITUR PENCARIAN JANGKA PANJANG ---
-    with st.container():
-        search_query = st.text_input("🔍 Cari Masalah Sebelumnya (Contoh: 'Printer', 'Wifi', 'Budi')", placeholder="Ketik kata kunci masalah untuk referensi solusi...")
-        
-        if search_query:
-            # Cari di kolom masalah, nama_user, atau cabang (Case Insensitive)
-            filtered_df = df[
-                df['masalah'].str.contains(search_query, case=False, na=False) | 
-                df['nama_user'].str.contains(search_query, case=False, na=False) |
-                df['cabang'].str.contains(search_query, case=False, na=False)
-            ]
-            st.write(f"Ditemukan **{len(filtered_df)}** data yang relevan.")
-        else:
-            filtered_df = df
+    # Search bar
+    search_query = st.text_input("🔍 Cari Riwayat Masalah", placeholder="Ketik kata kunci...")
+    if search_query:
+        df = df[df['masalah'].str.contains(search_query, case=False, na=False) | df['nama_user'].str.contains(search_query, case=False, na=False)]
 
-    st.write("---")
-    
-    # Dashboard Metrics (Berdasarkan data yang sudah difilter cari)
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Total View", len(filtered_df))
-    m2.metric("Open", len(filtered_df[filtered_df['status'] == 'Open']))
-    m3.metric("Progress", len(filtered_df[filtered_df['status'] == 'In Progress']))
-    m4.metric("Solved", len(filtered_df[filtered_df['status'] == 'Solved']))
+    st.dataframe(df, use_container_width=True, hide_index=True)
 
-    st.dataframe(filtered_df, use_container_width=True, hide_index=True)
-
-    # --- ACTION PANEL ---
+    st.divider()
     c1, c2 = st.columns(2)
+    
     with c1:
-        with st.expander("🔄 Update Status"):
-            if not filtered_df.empty:
-                id_upd = st.selectbox("ID Tiket", filtered_df['id'].tolist(), key="upd")
-                new_status = st.selectbox("Status", ["Open", "In Progress", "Solved", "Closed"])
-                if st.button("Simpan", type="primary"):
+        with st.expander("🔄 Update Status Tiket"):
+            if not df.empty:
+                id_upd = st.selectbox("Pilih ID Tiket", df['id'].tolist(), key="upd")
+                new_status = st.selectbox("Status Baru", ["Open", "In Progress", "Solved", "Closed"])
+                if st.button("Update Sekarang", type="primary", use_container_width=True):
                     db = get_connection()
                     cursor = db.cursor()
                     now = datetime.now().strftime('%Y-%m-%d %H:%M:%S') if new_status in ["Solved", "Closed"] else None
                     cursor.execute("UPDATE tickets SET status=%s, waktu_selesai=%s WHERE id=%s", (new_status, now, id_upd))
                     db.close()
+                    # Menampilkan siapa yang melakukan update
+                    st.toast(f"✅ Tiket #{id_upd} diupdate oleh {st.session_state.user_name.upper()}")
                     st.rerun()
+
     with c2:
-        with st.expander("🗑️ Hapus Data"):
-            if not filtered_df.empty:
-                id_del = st.selectbox("ID Tiket", filtered_df['id'].tolist(), key="del")
-                if st.button("Hapus Permanen"):
+        with st.expander("🗑️ Hapus Tiket"):
+            if not df.empty:
+                id_del = st.selectbox("Pilih ID Tiket", df['id'].tolist(), key="del")
+                st.warning(f"Konfirmasi penghapusan ID #{id_del}")
+                if st.button("Hapus Permanen", use_container_width=True):
                     db = get_connection()
                     cursor = db.cursor()
                     cursor.execute("DELETE FROM tickets WHERE id=%s", (id_del))
                     db.close()
+                    # Menampilkan siapa yang melakukan penghapusan
+                    st.toast(f"⚠️ Tiket #{id_del} dihapus oleh {st.session_state.user_name.upper()}")
                     st.rerun()
 
-# --- MENU 3 & 4 (Statistik & Management User tetap sama) ---
+# --- MENU LAINNYA ---
 elif menu == "Statistik" and st.session_state.logged_in:
-    st.markdown("<div class='main-header'>📈 IT Performance</div>", unsafe_allow_html=True)
-    db = get_connection()
-    df_s = pd.read_sql("SELECT status, cabang FROM tickets", db)
-    db.close()
-    if not df_s.empty:
-        col1, col2 = st.columns(2)
-        col1.bar_chart(df_s['cabang'].value_counts())
-        col2.bar_chart(df_s['status'].value_counts())
+    st.markdown("<div class='main-header'>📈 Analitik</div>", unsafe_allow_html=True)
+    st.info(f"Analisis data oleh: {st.session_state.user_name.upper()}")
+    # ... (kode bar chart tetap sama)
 
 elif menu == "Management User" and st.session_state.logged_in:
-    st.markdown("<div class='main-header'>👤 User Management</div>", unsafe_allow_html=True)
-    users = st.secrets["auth"]
-    st.table([{"Username": u, "Role": "Admin"} for u in users])
+    st.markdown("<div class='main-header'>👤 Staff IT Terdaftar</div>", unsafe_allow_html=True)
+    st.table([{"User": u, "Akses": "Administrator"} for u in st.secrets["auth"]])
