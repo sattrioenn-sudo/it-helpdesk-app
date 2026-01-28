@@ -35,7 +35,6 @@ st.markdown("""
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     .stApp { background: radial-gradient(circle at top right, #10141d, #05070a); }
     
-    /* Glassmorphism Cards */
     div[data-testid="metric-container"] {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.08);
@@ -44,13 +43,11 @@ st.markdown("""
         box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
     }
 
-    /* Sidebar */
     section[data-testid="stSidebar"] {
         background-color: rgba(10, 15, 25, 0.8) !important;
         backdrop-filter: blur(10px);
     }
 
-    /* Premium Clock */
     .clock-box {
         background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
         padding: 20px; border-radius: 20px; text-align: center;
@@ -58,7 +55,6 @@ st.markdown("""
     }
     .digital-clock { color: white; font-size: 32px; font-weight: 800; }
 
-    /* Action Header */
     .action-header {
         background: linear-gradient(90deg, rgba(29,78,216,0.15) 0%, rgba(29,78,216,0) 100%);
         padding: 15px; border-radius: 15px; border-left: 6px solid #1d4ed8; margin: 25px 0;
@@ -80,7 +76,7 @@ def add_log(action, details):
 
 # --- 6. SIDEBAR MANAGEMENT ---
 with st.sidebar:
-    st.markdown("<h1 style='text-align: center; color: white; font-size: 22px;'>🎫 IT-Kemasan Group</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: white; font-size: 22px;'>🎫 IT-KEMASAN PRO</h1>", unsafe_allow_html=True)
     wib = get_wib_now()
     st.markdown(f'<div class="clock-box"><div class="digital-clock">{wib.strftime("%H:%M:%S")}</div><div style="color: white; opacity:0.7; font-size:12px;">{wib.strftime("%A, %d %b %Y")}</div></div>', unsafe_allow_html=True)
 
@@ -116,9 +112,15 @@ if menu == "Dashboard Monitor":
     if 'waktu_selesai' in df.columns:
         df['waktu_selesai'] = df.apply(lambda r: get_wib_now().strftime('%Y-%m-%d %H:%M:%S') if (r['status'] == 'Solved' and (r['waktu_selesai'] is None or str(r['waktu_selesai']) == 'None')) else r['waktu_selesai'], axis=1)
 
-    df_display = df.rename(columns={'nama_user': 'Nama Teknisi'})
+    # --- REVISI NAMA KOLOM (HANYA UNTUK TAMPILAN) ---
+    df_display = df.rename(columns={
+        'nama_user': 'Nama Teknisi',
+        'masalah': 'Problem',
+        'waktu': 'Waktu Laporan',
+        'waktu_selesai': 'Selesai Pada'
+    })
 
-    q = st.text_input("🔍 Cari Tiket/Teknisi...", placeholder="Ketik di sini untuk filter data...")
+    q = st.text_input("🔍 Cari Tiket/Teknisi/Problem...", placeholder="Filter data...")
     if q: df_display = df_display[df_display.apply(lambda r: r.astype(str).str.contains(q, case=False).any(), axis=1)]
 
     c1, c2, c3, c4 = st.columns(4)
@@ -155,7 +157,7 @@ if menu == "Dashboard Monitor":
                     st.toast(f"ID #{id_up} Updated!")
                     st.rerun()
     with col_del:
-        with st.expander("🗑️ Hapus Tiket (Admin Only)"):
+        with st.expander("🗑️ Hapus Tiket"):
             if not df.empty:
                 id_del = st.selectbox("Pilih ID Hapus", df['id'].tolist(), key="del_select")
                 if st.button("KONFIRMASI HAPUS", use_container_width=True):
@@ -198,7 +200,7 @@ elif menu == "Buat Tiket Baru":
                 if user and issue:
                     db = get_connection()
                     cur = db.cursor()
-                    cur.execute("INSERT INTO tickets (nama_user, cabang, problem, prioritas, status) VALUES (%s,%s,%s,%s,'Open')", (user, cabang, issue, prio))
+                    cur.execute("INSERT INTO tickets (nama_user, cabang, masalah, prioritas, status) VALUES (%s,%s,%s,%s,'Open')", (user, cabang, issue, prio))
                     db.close()
                     st.success("Laporan berhasil dikirim!")
                     st.balloons()
