@@ -6,55 +6,28 @@ from datetime import datetime
 
 # --- KONFIGURASI HALAMAN ---
 st.set_page_config(
-    page_title="IT Kemasan", 
+    page_title="IT Helpdesk Pro", 
     page_icon="🎫", 
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 # --- CUSTOM CSS (ADAPTIVE THEME) ---
-# Menggunakan variabel internal Streamlit agar support Dark & Light Mode
 st.markdown("""
     <style>
-    /* Mengikuti warna background tema user */
-    .main {
-        padding: 2rem;
-    }
-    
-    /* Card Metric yang Adaptif */
+    .main { padding: 2rem; }
     div[data-testid="metric-container"] {
-        background-color: rgba(128, 128, 128, 0.1); /* Transparan adaptif */
+        background-color: rgba(128, 128, 128, 0.1); 
         border: 1px solid rgba(128, 128, 128, 0.2);
-        padding: 15px;
-        border-radius: 15px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        padding: 15px; border-radius: 15px;
     }
-
-    /* Judul Utama yang menyesuaikan warna teks tema */
     .main-header {
-        font-size: 32px;
-        font-weight: 800;
-        text-align: center;
-        margin-bottom: 25px;
-        color: var(--text-color); /* Otomatis putih di dark, hitam di light */
+        font-size: 32px; font-weight: 800; text-align: center;
+        margin-bottom: 25px; color: var(--text-color);
     }
-
-    /* Styling Form agar tetap kontras */
     [data-testid="stForm"] {
         border: 1px solid rgba(128, 128, 128, 0.3);
-        border-radius: 20px;
-        padding: 20px;
-    }
-
-    /* Mempercantik Sidebar */
-    [data-testid="stSidebarNav"] {
-        padding-top: 20px;
-    }
-    
-    /* Warna Button Primary */
-    .stButton>button {
-        border-radius: 10px;
-        font-weight: 600;
+        border-radius: 20px; padding: 20px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -98,7 +71,6 @@ def login():
 
 login()
 
-# --- NAVIGASI ---
 if st.session_state.logged_in:
     menu = st.sidebar.selectbox("📂 MENU", ["Daftar Tiket", "Statistik", "Buat Tiket", "Management User"])
 else:
@@ -107,7 +79,6 @@ else:
 # --- MENU 1: BUAT TIKET ---
 if menu == "Buat Tiket":
     st.markdown("<div class='main-header'>📝 Submit Support Ticket</div>", unsafe_allow_html=True)
-    
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         with st.form("ticket_form", clear_on_submit=True):
@@ -115,7 +86,6 @@ if menu == "Buat Tiket":
             cabang = st.selectbox("🏢 Cabang", st.secrets["master"]["daftar_cabang"])
             issue = st.text_area("🛠 Detail Kendala")
             priority = st.select_slider("🔥 Prioritas", options=["Low", "Medium", "High"])
-            
             if st.form_submit_button("🚀 KIRIM LAPORAN", use_container_width=True):
                 if user and issue:
                     db = get_connection()
@@ -125,29 +95,46 @@ if menu == "Buat Tiket":
                     st.success("Tiket Berhasil Dikirim!")
                     st.balloons()
 
-# --- MENU 2: DAFTAR TIKET ---
+# --- MENU 2: DAFTAR TIKET (WITH SEARCH/KNOWLEDGE BASE) ---
 elif menu == "Daftar Tiket" and st.session_state.logged_in:
-    st.markdown("<div class='main-header'>📊 Monitoring Dashboard</div>", unsafe_allow_html=True)
+    st.markdown("<div class='main-header'>📊 Monitoring & Knowledge Base</div>", unsafe_allow_html=True)
     
     db = get_connection()
-    df = pd.read_sql("SELECT id, nama_user, cabang, masalah, prioritas, status, waktu FROM tickets ORDER BY id DESC", db)
+    df = pd.read_sql("SELECT * FROM tickets ORDER BY id DESC", db)
     db.close()
 
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Total", len(df))
-    m2.metric("Open", len(df[df['status'] == 'Open']))
-    m3.metric("Progress", len(df[df['status'] == 'In Progress']))
-    m4.metric("Solved", len(df[df['status'] == 'Solved']))
+    # --- FITUR PENCARIAN JANGKA PANJANG ---
+    with st.container():
+        search_query = st.text_input("🔍 Cari Masalah Sebelumnya (Contoh: 'Printer', 'Wifi', 'Budi')", placeholder="Ketik kata kunci masalah untuk referensi solusi...")
+        
+        if search_query:
+            # Cari di kolom masalah, nama_user, atau cabang (Case Insensitive)
+            filtered_df = df[
+                df['masalah'].str.contains(search_query, case=False, na=False) | 
+                df['nama_user'].str.contains(search_query, case=False, na=False) |
+                df['cabang'].str.contains(search_query, case=False, na=False)
+            ]
+            st.write(f"Ditemukan **{len(filtered_df)}** data yang relevan.")
+        else:
+            filtered_df = df
 
     st.write("---")
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    
+    # Dashboard Metrics (Berdasarkan data yang sudah difilter cari)
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Total View", len(filtered_df))
+    m2.metric("Open", len(filtered_df[filtered_df['status'] == 'Open']))
+    m3.metric("Progress", len(filtered_df[filtered_df['status'] == 'In Progress']))
+    m4.metric("Solved", len(filtered_df[filtered_df['status'] == 'Solved']))
 
-    # Action Panel
+    st.dataframe(filtered_df, use_container_width=True, hide_index=True)
+
+    # --- ACTION PANEL ---
     c1, c2 = st.columns(2)
     with c1:
         with st.expander("🔄 Update Status"):
-            if not df.empty:
-                id_upd = st.selectbox("ID Tiket", df['id'].tolist(), key="upd")
+            if not filtered_df.empty:
+                id_upd = st.selectbox("ID Tiket", filtered_df['id'].tolist(), key="upd")
                 new_status = st.selectbox("Status", ["Open", "In Progress", "Solved", "Closed"])
                 if st.button("Simpan", type="primary"):
                     db = get_connection()
@@ -158,8 +145,8 @@ elif menu == "Daftar Tiket" and st.session_state.logged_in:
                     st.rerun()
     with c2:
         with st.expander("🗑️ Hapus Data"):
-            if not df.empty:
-                id_del = st.selectbox("ID Tiket", df['id'].tolist(), key="del")
+            if not filtered_df.empty:
+                id_del = st.selectbox("ID Tiket", filtered_df['id'].tolist(), key="del")
                 if st.button("Hapus Permanen"):
                     db = get_connection()
                     cursor = db.cursor()
@@ -167,23 +154,17 @@ elif menu == "Daftar Tiket" and st.session_state.logged_in:
                     db.close()
                     st.rerun()
 
-# --- MENU 3: STATISTIK ---
+# --- MENU 3 & 4 (Statistik & Management User tetap sama) ---
 elif menu == "Statistik" and st.session_state.logged_in:
     st.markdown("<div class='main-header'>📈 IT Performance</div>", unsafe_allow_html=True)
     db = get_connection()
     df_s = pd.read_sql("SELECT status, cabang FROM tickets", db)
     db.close()
-    
     if not df_s.empty:
         col1, col2 = st.columns(2)
-        with col1:
-            st.write("**Beban per Cabang**")
-            st.bar_chart(df_s['cabang'].value_counts())
-        with col2:
-            st.write("**Status Tiket**")
-            st.bar_chart(df_s['status'].value_counts())
+        col1.bar_chart(df_s['cabang'].value_counts())
+        col2.bar_chart(df_s['status'].value_counts())
 
-# --- MENU 4: MANAGEMENT USER ---
 elif menu == "Management User" and st.session_state.logged_in:
     st.markdown("<div class='main-header'>👤 User Management</div>", unsafe_allow_html=True)
     users = st.secrets["auth"]
