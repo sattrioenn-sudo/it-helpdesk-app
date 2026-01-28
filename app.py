@@ -2,7 +2,6 @@ import streamlit as st
 import pymysql
 import pandas as pd
 import certifi
-import requests
 from datetime import datetime
 
 # --- KONFIGURASI HALAMAN ---
@@ -30,7 +29,6 @@ st.markdown("""
         transition: all 0.3s;
         font-weight: 600;
     }
-    /* Tombol Hapus Warna Merah */
     div.stButton > button:first-child[data-testid="baseButton-secondary"] {
         color: white;
         background-color: #dc3545;
@@ -56,14 +54,14 @@ def login():
                     st.session_state.user_name = user_input
                     st.rerun()
                 else:
-                    st.error("Gagal Login")
+                    st.sidebar.error("Gagal Login")
         else:
             st.success(f"Online: **{st.session_state.user_name.upper()}**")
             if st.button("Logout", use_container_width=True):
                 st.session_state.logged_in = False
                 st.rerun()
 
-# --- FUNGSI HELPER ---
+# --- FUNGSI HELPER KONEKSI ---
 def get_connection():
     return pymysql.connect(
         host=st.secrets["tidb"]["host"],
@@ -74,14 +72,6 @@ def get_connection():
         autocommit=True,
         ssl={'ca': certifi.where()}
     )
-
-def send_telegram(user, cabang, issue, priority):
-    token = st.secrets["telegram"]["token"]
-    chat_id = st.secrets["telegram"]["chat_id"]
-    pesan = f"⚠️ *TIKET BARU MASUK*\n\n👤 *User:* {user}\n🏢 *Cabang:* {cabang}\n🔥 *Prioritas:* {priority}\n🛠 *Masalah:* {issue}"
-    url = f"https://api.telegram.org/bot{token}/sendMessage?chat_id={chat_id}&text={pesan}&parse_mode=Markdown"
-    try: requests.get(url, timeout=5)
-    except: pass
 
 # --- JALANKAN LOGIN ---
 login()
@@ -103,13 +93,17 @@ if menu == "Buat Tiket":
         priority = st.select_slider("🔥 Prioritas", options=["Low", "Medium", "High"])
         if st.form_submit_button("🚀 Kirim Laporan", use_container_width=True):
             if user and issue:
-                db = get_connection()
-                cursor = db.cursor()
-                cursor.execute("INSERT INTO tickets (nama_user, cabang, masalah, prioritas, status) VALUES (%s, %s, %s, %s, 'Open')", (user, cabang, issue, priority))
-                db.close()
-                send_telegram(user, cabang, issue, priority)
-                st.success("Tiket Berhasil Dikirim!")
-                st.balloons()
+                try:
+                    db = get_connection()
+                    cursor = db.cursor()
+                    cursor.execute("INSERT INTO tickets (nama_user, cabang, masalah, prioritas, status) VALUES (%s, %s, %s, %s, 'Open')", (user, cabang, issue, priority))
+                    db.close()
+                    st.success("✅ Tiket Berhasil Dikirim!")
+                    st.balloons()
+                except Exception as e:
+                    st.error(f"Error Database: {e}")
+            else:
+                st.warning("Mohon isi nama dan detail masalah.")
 
 # --- MENU 2: DAFTAR TIKET (Update & Hapus) ---
 elif menu == "Daftar Tiket" and st.session_state.logged_in:
@@ -130,28 +124,30 @@ elif menu == "Daftar Tiket" and st.session_state.logged_in:
 
     with col_act1:
         with st.expander("⚙️ Update Status"):
-            u1, u2 = st.columns(2)
-            id_upd = u1.selectbox("Pilih ID Update", df['id'].tolist(), key="upd_id")
-            stat_upd = u2.selectbox("Status Baru", ["Open", "In Progress", "Solved", "Closed"])
-            if st.button("Update Status", use_container_width=True, type="primary"):
-                db = get_connection()
-                cursor = db.cursor()
-                now = datetime.now().strftime('%Y-%m-%d %H:%M:%S') if stat_upd in ["Solved", "Closed"] else None
-                cursor.execute("UPDATE tickets SET status=%s, waktu_selesai=%s WHERE id=%s", (stat_upd, now, id_upd))
-                db.close()
-                st.rerun()
+            if not df.empty:
+                u1, u2 = st.columns(2)
+                id_upd = u1.selectbox("Pilih ID Update", df['id'].tolist(), key="upd_id")
+                stat_upd = u2.selectbox("Status Baru", ["Open", "In Progress", "Solved", "Closed"])
+                if st.button("Update Status", use_container_width=True, type="primary"):
+                    db = get_connection()
+                    cursor = db.cursor()
+                    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S') if stat_upd in ["Solved", "Closed"] else None
+                    cursor.execute("UPDATE tickets SET status=%s, waktu_selesai=%s WHERE id=%s", (stat_upd, now, id_upd))
+                    db.close()
+                    st.rerun()
 
     with col_act2:
         with st.expander("🗑️ Hapus Tiket"):
-            id_del = st.selectbox("Pilih ID Hapus", df['id'].tolist(), key="del_id")
-            st.warning(f"Apakah Anda yakin ingin menghapus tiket ID #{id_del}?")
-            if st.button("Hapus Permanen", use_container_width=True):
-                db = get_connection()
-                cursor = db.cursor()
-                cursor.execute("DELETE FROM tickets WHERE id=%s", (id_del))
-                db.close()
-                st.toast(f"Tiket #{id_del} telah dihapus!")
-                st.rerun()
+            if not df.empty:
+                id_del = st.selectbox("Pilih ID Hapus", df['id'].tolist(), key="del_id")
+                st.warning(f"Hapus tiket ID #{id_del}?")
+                if st.button("Hapus Permanen", use_container_width=True):
+                    db = get_connection()
+                    cursor = db.cursor()
+                    cursor.execute("DELETE FROM tickets WHERE id=%s", (id_del))
+                    db.close()
+                    st.toast(f"Tiket #{id_del} telah dihapus!")
+                    st.rerun()
 
 # --- MENU 3: STATISTIK ---
 elif menu == "Statistik" and st.session_state.logged_in:
@@ -161,11 +157,15 @@ elif menu == "Statistik" and st.session_state.logged_in:
     db.close()
     if not df_s.empty:
         c1, c2 = st.columns(2)
-        c1.bar_chart(df_s['cabang'].value_counts())
-        c2.bar_chart(df_s['status'].value_counts())
+        with c1:
+            st.write("**Tiket per Cabang**")
+            st.bar_chart(df_s['cabang'].value_counts())
+        with c2:
+            st.write("**Status Tiket**")
+            st.bar_chart(df_s['status'].value_counts())
 
 # --- MENU 4: MANAGEMENT USER ---
 elif menu == "Management User" and st.session_state.logged_in:
     st.title("👤 User Directory")
     users = st.secrets["auth"]
-    st.table([{"Username": u, "Role": "Admin"} for u in users])
+    st.table([{"Username": u, "Role": "Admin/IT Staff"} for u in users])
