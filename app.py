@@ -43,15 +43,10 @@ def has_access(perm):
     user_perms = st.session_state.user_permissions.get(user, ["Input"])
     return perm in user_perms
 
-# --- 4. CSS CUSTOM (RARE UI DESIGN - NO CHANGE TO LAYOUT) ---
+# --- 4. CSS CUSTOM (RARE UI DESIGN) ---
 st.markdown("""
     <style>
-    /* Background Deep Space */
-    .stApp {
-        background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%);
-    }
-
-    /* Glassmorphism Cards */
+    .stApp { background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%); }
     div[data-testid="metric-container"], .stDataFrame, .stExpander, .stForm {
         background: rgba(255, 255, 255, 0.01) !important;
         backdrop-filter: blur(15px);
@@ -59,69 +54,41 @@ st.markdown("""
         border-radius: 20px !important;
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     }
-
-    /* Animated Clock Box */
-    .clock-container {
-        position: relative;
-        padding: 3px;
-        background: linear-gradient(conic-gradient(from 0deg, transparent, #3b82f6, transparent 30%));
-        border-radius: 20px;
-        animation: rotate 4s linear infinite;
-        margin-bottom: 20px;
-    }
-    
-    @keyframes rotate {
-        100% { transform: rotate(360deg); }
-    }
-
     .clock-inner {
-        background: #0f172a;
-        border-radius: 18px;
-        padding: 15px;
-        text-align: center;
+        background: #0f172a; border-radius: 18px; padding: 15px; text-align: center;
+        border: 1px solid rgba(59, 130, 246, 0.3);
     }
-
     .digital-clock {
-        font-family: 'JetBrains Mono', monospace;
-        color: #60a5fa;
-        font-size: 32px;
-        font-weight: 800;
-        text-shadow: 0 0 15px rgba(59, 130, 246, 0.6);
+        font-family: 'JetBrains Mono', monospace; color: #60a5fa;
+        font-size: 32px; font-weight: 800; text-shadow: 0 0 15px rgba(59, 130, 246, 0.6);
     }
-
-    /* Cyber Header */
     .action-header {
         background: linear-gradient(90deg, rgba(59, 130, 246, 0.2) 0%, transparent 100%);
-        padding: 15px;
-        border-radius: 12px;
-        border-left: 6px solid #3b82f6;
-        color: #f8fafc;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        margin: 25px 0;
+        padding: 15px; border-radius: 12px; border-left: 6px solid #3b82f6;
+        color: #f8fafc; text-transform: uppercase; letter-spacing: 2px; margin: 25px 0;
     }
-
-    /* Glow Buttons */
     .stButton>button {
         background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
-        border: none !important;
-        border-radius: 10px !important;
-        color: white !important;
-        font-weight: bold !important;
-        transition: 0.3s all !important;
+        border: none !important; border-radius: 10px !important; color: white !important;
+        font-weight: bold !important; transition: 0.3s all !important;
         box-shadow: 0 0 15px rgba(37, 99, 235, 0.3) !important;
     }
-
     .stButton>button:hover {
-        box-shadow: 0 0 25px rgba(37, 99, 235, 0.6) !important;
-        transform: translateY(-2px);
+        box-shadow: 0 0 25px rgba(37, 99, 235, 0.6) !important; transform: translateY(-2px);
     }
-
-    /* Custom Input Fields */
     input, textarea, [data-baseweb="select"] {
         background-color: rgba(255, 255, 255, 0.05) !important;
-        border-radius: 10px !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 10px !important; border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    }
+    /* Rare Sidebar Image Style */
+    .sidebar-img-container {
+        border-radius: 15px; overflow: hidden; border: 1px solid rgba(59, 130, 246, 0.4);
+        margin-top: 20px; box-shadow: 0 0 20px rgba(59, 130, 246, 0.15);
+        position: relative;
+    }
+    .sidebar-img-tag {
+        padding: 5px; background: rgba(59, 130, 246, 0.1); 
+        text-align: center; font-size: 9px; color: #60a5fa; font-weight: bold;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -143,12 +110,11 @@ if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 with st.sidebar:
     st.markdown("<h2 style='text-align: center; color: #60a5fa;'>🎫 IT-KEMASAN</h2>", unsafe_allow_html=True)
     
-    # Rare Animated Clock
     wib = get_wib_now()
     st.markdown(f'''
-        <div class="clock-inner" style="border: 1px solid rgba(59, 130, 246, 0.3); margin-bottom: 20px;">
+        <div class="clock-inner">
             <div class="digital-clock">{wib.strftime("%H:%M:%S")}</div>
-            <div style="color: #94a3b8; font-size: 13px;">{wib.strftime("%A, %d %B %Y")}</div>
+            <div style="color: #94a3b8; font-size: 13px;">{wib.strftime("%A, %d %b %Y")}</div>
         </div>
     ''', unsafe_allow_html=True)
 
@@ -166,6 +132,17 @@ with st.sidebar:
         if has_access("Export"): menu_list.append("Export & Reporting")
         if has_access("Security"): menu_list.append("Security Log")
         menu = st.selectbox("📂 NAVIGATION", menu_list)
+
+        # --- TAMPILAN GAMBAR IT RARE ---
+        st.markdown(f'''
+            <div class="sidebar-img-container">
+                <img src="https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=500&auto=format&fit=crop" 
+                     style="width: 100%; display: block; filter: contrast(1.1) brightness(0.8);">
+                <div class="sidebar-img-tag">CORE INFRASTRUCTURE ACTIVE</div>
+            </div>
+        ''', unsafe_allow_html=True)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
         if st.button("🔒 LOGOUT", use_container_width=True):
             st.session_state.logged_in = False
             st.rerun()
@@ -180,7 +157,6 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
     df = pd.read_sql("SELECT * FROM tickets ORDER BY id DESC", db)
     db.close()
 
-    # Injeksi Virtual Data
     df['Keterangan'] = df['id'].apply(lambda x: st.session_state.custom_keterangan.get(str(x), "-"))
     df_display = df.rename(columns={'nama_user': 'Nama Teknisi', 'masalah': 'Problem', 'waktu': 'Waktu Laporan'})
     
@@ -232,7 +208,6 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
                         db = get_connection(); cur = db.cursor()
                         cur.execute("UPDATE tickets SET status=%s WHERE id=%s", (st_up, id_up))
                         db.close(); add_log("UPDATE", f"ID #{id_up}"); st.rerun()
-                
                 with c_btn2:
                     if st.button("🗑️ HAPUS TIKET", use_container_width=True):
                         if has_access("Hapus"):
