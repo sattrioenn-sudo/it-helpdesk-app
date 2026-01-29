@@ -1,4 +1,4 @@
-app.py : import streamlit as st
+import streamlit as st
 import pymysql
 import pandas as pd
 import certifi
