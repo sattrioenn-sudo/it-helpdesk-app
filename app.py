@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 # --- 1. KONFIGURASI & THEME ---
 st.set_page_config(page_title="IT Kemasan", page_icon="🎫", layout="wide")
 
-# --- 2. STORAGE VIRTUAL (AGAR DATA TIDAK HILANG) ---
+# --- 2. STORAGE VIRTUAL ---
 def load_data(file, default):
     if os.path.exists(file):
         with open(file, 'r') as f: return json.load(f)
@@ -43,58 +43,42 @@ def has_access(perm):
     user_perms = st.session_state.user_permissions.get(user, ["Input"])
     return perm in user_perms
 
-# --- 4. CSS CUSTOM (RARE UI ENHANCEMENT) ---
+# --- 4. CSS CUSTOM (RARE UI DESIGN) ---
 st.markdown("""
     <style>
-    /* Background Deep Ocean */
     .stApp { background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%); }
     
-    /* Glassmorphism Effect */
     div[data-testid="metric-container"], .stDataFrame, .stExpander, .stForm {
-        background: rgba(255, 255, 255, 0.02) !important;
+        background: rgba(255, 255, 255, 0.01) !important;
         backdrop-filter: blur(15px);
-        border: 1px solid rgba(59, 130, 246, 0.2) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
         border-radius: 20px !important;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     }
 
-    /* Rare Clock Styling */
     .clock-inner {
-        background: rgba(15, 23, 42, 0.8); border-radius: 18px; padding: 15px; text-align: center;
-        border: 1px solid #3b82f6; box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+        background: #0f172a; border-radius: 18px; padding: 15px; text-align: center;
+        border: 1px solid rgba(59, 130, 246, 0.3); margin-bottom: 20px;
     }
+
     .digital-clock {
         font-family: 'JetBrains Mono', monospace; color: #60a5fa;
-        font-size: 32px; font-weight: 800; text-shadow: 0 0 10px rgba(96, 165, 250, 0.8);
+        font-size: 32px; font-weight: 800; text-shadow: 0 0 15px rgba(59, 130, 246, 0.6);
     }
 
-    /* Cyber Header Accent */
-    .action-header {
-        background: linear-gradient(90deg, rgba(59, 130, 246, 0.2) 0%, transparent 100%);
-        padding: 15px; border-radius: 12px; border-left: 6px solid #3b82f6;
-        color: #f8fafc; text-transform: uppercase; letter-spacing: 2px; margin: 25px 0;
-    }
-
-    /* Premium Buttons */
     .stButton>button {
-        background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%) !important;
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
         border: none !important; border-radius: 10px !important; color: white !important;
         font-weight: bold !important; transition: 0.3s all !important;
-        box-shadow: 0 4px 15px rgba(29, 78, 216, 0.4) !important;
-    }
-    .stButton>button:hover {
-        box-shadow: 0 0 20px rgba(59, 130, 246, 0.6) !important; transform: translateY(-2px);
     }
 
-    /* Sidebar Image Rare Container */
-    .sidebar-img-container {
-        border-radius: 15px; overflow: hidden; border: 1px solid rgba(59, 130, 246, 0.3);
-        margin-top: 20px; position: relative; background: #000;
-    }
-    .sidebar-img-tag {
-        padding: 6px; background: rgba(59, 130, 246, 0.15); 
-        text-align: center; font-size: 10px; color: #60a5fa; font-weight: bold;
-        letter-spacing: 1px; border-top: 1px solid rgba(59, 130, 246, 0.3);
+    /* Sidebar Analytics Box */
+    .sidebar-stats-box {
+        background: rgba(59, 130, 246, 0.05);
+        border: 1px solid rgba(59, 130, 246, 0.2);
+        border-radius: 15px;
+        padding: 10px;
+        margin-top: 20px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -105,10 +89,7 @@ if 'audit_logs' not in st.session_state:
 
 def add_log(action, details):
     waktu = get_wib_now().strftime('%H:%M:%S')
-    st.session_state.audit_logs.insert(0, {
-        "Waktu": waktu, "User": st.session_state.user_name.upper(),
-        "Aksi": action, "Detail": details
-    })
+    st.session_state.audit_logs.insert(0, {"Waktu": waktu, "User": st.session_state.user_name.upper(), "Aksi": action, "Detail": details})
 
 # --- 6. SIDEBAR MANAGEMENT ---
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
@@ -138,25 +119,37 @@ with st.sidebar:
         if has_access("Export"): menu_list.append("Export & Reporting")
         if has_access("Security"): menu_list.append("Security Log")
         menu = st.selectbox("📂 NAVIGATION", menu_list)
-
-        # --- TAMPILAN GAMBAR UI-MATCHING RARE ---
-        st.markdown(f'''
-            <div class="sidebar-img-container">
-                <img src="https://images.unsplash.com/photo-1551288049-bbbda536339a?q=80&w=500&auto=format&fit=crop" 
-                     style="width: 100%; display: block; filter: hue-rotate(180deg) brightness(0.7) contrast(1.2); opacity: 0.85;">
-                <div class="sidebar-img-tag">📊 DATA ANALYTICS HUB</div>
-            </div>
-        ''', unsafe_allow_html=True)
         
-        st.markdown("<br>", unsafe_allow_html=True)
         if st.button("🔒 LOGOUT", use_container_width=True):
             st.session_state.logged_in = False
             st.rerun()
+
+        # --- GRAFIK DATA CUSTOM DI BAWAH LOGOUT ---
+        st.markdown("---")
+        st.markdown("<p style='font-size: 12px; color: #60a5fa; text-align: center;'>LIVE TICKET TREND</p>", unsafe_allow_html=True)
+        try:
+            db = get_connection()
+            # Ambil data singkat untuk grafik sidebar
+            df_side = pd.read_sql("SELECT status, COUNT(*) as jumlah FROM tickets GROUP BY status", db)
+            db.close()
+            
+            if not df_side.empty:
+                # Menampilkan Bar Chart Mini yang warnanya match dengan UI
+                st.bar_chart(df_side.set_index('status'), height=150, use_container_width=True)
+                
+                st.markdown(f'''
+                    <div style="text-align: center; font-size: 10px; color: #94a3b8; padding: 5px; border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 10px;">
+                        System Integrity: <span style="color: #22c55e;">100% ONLINE</span>
+                    </div>
+                ''', unsafe_allow_html=True)
+        except:
+            st.caption("Waiting for database connection...")
 
 # --- 7. MENU LOGIC ---
 if not st.session_state.logged_in:
     menu = "Quick Input Mode"
 
+# (Sisa kode menu tetap sama seperti milikmu)
 if menu == "Dashboard Monitor" and st.session_state.logged_in:
     st.markdown("## 📊 Monitoring Center")
     db = get_connection()
@@ -196,7 +189,6 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
                             db = get_connection(); cur = db.cursor()
                             cur.execute("INSERT INTO tickets (nama_user, cabang, masalah, prioritas, status, waktu) VALUES (%s,%s,%s,%s,'Open',%s)", (u_in, c_in, i_in, p_in, get_wib_now().strftime('%Y-%m-%d %H:%M:%S')))
                             db.close(); add_log("INPUT", u_in); st.rerun()
-            else: st.warning("Akses Input Dibatasi.")
 
     with col_ctrl:
         with st.expander("🔄 Update Status & Keterangan", expanded=True):
@@ -222,7 +214,6 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
                             if str(id_up) in st.session_state.custom_keterangan: del st.session_state.custom_keterangan[str(id_up)]
                             save_data('keterangan_it.json', st.session_state.custom_keterangan)
                             db.close(); add_log("DELETE", f"ID #{id_up}"); st.rerun()
-                        else: st.error("Akses Hapus Dibatasi")
 
 elif menu == "📦 Inventory Spareparts" and st.session_state.logged_in:
     try:
