@@ -18,11 +18,9 @@ def load_data(file, default):
 def save_data(file, data):
     with open(file, 'w') as f: json.dump(data, f)
 
-# Inisialisasi Data Virtual
 if 'custom_keterangan' not in st.session_state:
     st.session_state.custom_keterangan = load_data('keterangan_it.json', {})
 if 'user_permissions' not in st.session_state:
-    # Default: Admin dpt semua, yang lain diatur via menu Security
     st.session_state.user_permissions = load_data('permissions_it.json', {"admin": ["Input", "Edit", "Hapus", "Export", "Security"]})
 
 # --- 3. FUNGSI UTAMA ---
@@ -42,23 +40,88 @@ def get_connection():
 
 def has_access(perm):
     user = st.session_state.get("user_name", "").lower()
-    user_perms = st.session_state.user_permissions.get(user, ["Input"]) # Default hanya input
+    user_perms = st.session_state.user_permissions.get(user, ["Input"])
     return perm in user_perms
 
-# --- 4. CSS CUSTOM (TETAP UTUH) ---
+# --- 4. CSS CUSTOM (RARE UI DESIGN - NO CHANGE TO LAYOUT) ---
 st.markdown("""
     <style>
-    .stApp { background: radial-gradient(circle at top right, #0e1117, #1c2533); }
-    div[data-testid="metric-container"] {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(10px);
-        padding: 20px; border-radius: 15px; color: white !important;
+    /* Background Deep Space */
+    .stApp {
+        background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%);
     }
+
+    /* Glassmorphism Cards */
+    div[data-testid="metric-container"], .stDataFrame, .stExpander, .stForm {
+        background: rgba(255, 255, 255, 0.01) !important;
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: 20px !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Animated Clock Box */
+    .clock-container {
+        position: relative;
+        padding: 3px;
+        background: linear-gradient(conic-gradient(from 0deg, transparent, #3b82f6, transparent 30%));
+        border-radius: 20px;
+        animation: rotate 4s linear infinite;
+        margin-bottom: 20px;
+    }
+    
+    @keyframes rotate {
+        100% { transform: rotate(360deg); }
+    }
+
+    .clock-inner {
+        background: #0f172a;
+        border-radius: 18px;
+        padding: 15px;
+        text-align: center;
+    }
+
+    .digital-clock {
+        font-family: 'JetBrains Mono', monospace;
+        color: #60a5fa;
+        font-size: 32px;
+        font-weight: 800;
+        text-shadow: 0 0 15px rgba(59, 130, 246, 0.6);
+    }
+
+    /* Cyber Header */
     .action-header {
-        background: rgba(255, 255, 255, 0.05);
-        padding: 10px 20px; border-radius: 10px;
-        border-left: 5px solid #1d4ed8; margin: 20px 0;
+        background: linear-gradient(90deg, rgba(59, 130, 246, 0.2) 0%, transparent 100%);
+        padding: 15px;
+        border-radius: 12px;
+        border-left: 6px solid #3b82f6;
+        color: #f8fafc;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        margin: 25px 0;
+    }
+
+    /* Glow Buttons */
+    .stButton>button {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+        border: none !important;
+        border-radius: 10px !important;
+        color: white !important;
+        font-weight: bold !important;
+        transition: 0.3s all !important;
+        box-shadow: 0 0 15px rgba(37, 99, 235, 0.3) !important;
+    }
+
+    .stButton>button:hover {
+        box-shadow: 0 0 25px rgba(37, 99, 235, 0.6) !important;
+        transform: translateY(-2px);
+    }
+
+    /* Custom Input Fields */
+    input, textarea, [data-baseweb="select"] {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        border-radius: 10px !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -74,31 +137,35 @@ def add_log(action, details):
         "Aksi": action, "Detail": details
     })
 
-# --- 6. SIDEBAR ---
+# --- 6. SIDEBAR MANAGEMENT ---
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 
 with st.sidebar:
-    st.markdown("<h1 style='text-align: center; color: white;'>🎫 IT-Kemasan Group</h1>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #60a5fa;'>🎫 IT-KEMASAN</h2>", unsafe_allow_html=True)
+    
+    # Rare Animated Clock
     wib = get_wib_now()
-    st.markdown(f'<div class="clock-box"><div class="digital-clock">{wib.strftime("%H:%M:%S")}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'''
+        <div class="clock-inner" style="border: 1px solid rgba(59, 130, 246, 0.3); margin-bottom: 20px;">
+            <div class="digital-clock">{wib.strftime("%H:%M:%S")}</div>
+            <div style="color: #94a3b8; font-size: 13px;">{wib.strftime("%A, %d %B %Y")}</div>
+        </div>
+    ''', unsafe_allow_html=True)
 
     if not st.session_state.logged_in:
         u = st.text_input("Username")
         p = st.text_input("Password", type="password")
-        if st.button("🔓 SIGN IN", use_container_width=True, type="primary"):
+        if st.button("🔓 ACCESS SYSTEM", use_container_width=True):
             if u in st.secrets["auth"] and p == st.secrets["auth"][u]:
                 st.session_state.logged_in = True
                 st.session_state.user_name = u
                 st.rerun()
     else:
-        st.markdown(f"<p style='text-align: center;'>Operator: <b>{st.session_state.user_name.upper()}</b></p>", unsafe_allow_html=True)
-        
-        # Filter menu berdasarkan hak akses
+        st.markdown(f"<p style='text-align: center;'>Operator: <span style='color:#60a5fa;'>{st.session_state.user_name.upper()}</span></p>", unsafe_allow_html=True)
         menu_list = ["Dashboard Monitor", "📦 Inventory Spareparts"]
         if has_access("Export"): menu_list.append("Export & Reporting")
         if has_access("Security"): menu_list.append("Security Log")
-        
-        menu = st.selectbox("📂 MAIN MENU", menu_list)
+        menu = st.selectbox("📂 NAVIGATION", menu_list)
         if st.button("🔒 LOGOUT", use_container_width=True):
             st.session_state.logged_in = False
             st.rerun()
@@ -113,9 +180,8 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
     df = pd.read_sql("SELECT * FROM tickets ORDER BY id DESC", db)
     db.close()
 
-    # Injeksi Keterangan Virtual agar data tidak hilang
+    # Injeksi Virtual Data
     df['Keterangan'] = df['id'].apply(lambda x: st.session_state.custom_keterangan.get(str(x), "-"))
-
     df_display = df.rename(columns={'nama_user': 'Nama Teknisi', 'masalah': 'Problem', 'waktu': 'Waktu Laporan'})
     
     cols = list(df_display.columns)
@@ -132,7 +198,7 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
 
     st.dataframe(df_display, use_container_width=True, hide_index=True)
 
-    st.markdown("<div class='action-header'>⚡ Unified Action & Input Center</div>", unsafe_allow_html=True)
+    st.markdown("<div class='action-header'>⚡ Unified Action Center</div>", unsafe_allow_html=True)
     col_input, col_ctrl = st.columns([1.2, 1])
     
     with col_input:
@@ -148,19 +214,19 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
                             db = get_connection(); cur = db.cursor()
                             cur.execute("INSERT INTO tickets (nama_user, cabang, masalah, prioritas, status, waktu) VALUES (%s,%s,%s,%s,'Open',%s)", (u_in, c_in, i_in, p_in, get_wib_now().strftime('%Y-%m-%d %H:%M:%S')))
                             db.close(); add_log("INPUT", u_in); st.rerun()
-            else: st.warning("Anda tidak punya akses Input.")
+            else: st.warning("Akses Input Dibatasi.")
 
     with col_ctrl:
         with st.expander("🔄 Update Status & Keterangan", expanded=True):
             if has_access("Edit") and not df.empty:
                 id_up = st.selectbox("Pilih ID Tiket", df['id'].tolist())
                 current_ket = st.session_state.custom_keterangan.get(str(id_up), "")
-                new_ket = st.text_input("Keterangan Hardware (SSD/RAM/dll)", value=current_ket)
+                new_ket = st.text_input("Keterangan IT (SSD/RAM/dll)", value=current_ket)
                 st_up = st.selectbox("Set Status Database", ["Open", "In Progress", "Solved", "Closed"])
                 
                 c_btn1, c_btn2 = st.columns(2)
                 with c_btn1:
-                    if st.button("💾 SIMPAN SEMUA", use_container_width=True, type="primary"):
+                    if st.button("💾 SIMPAN SEMUA", use_container_width=True):
                         st.session_state.custom_keterangan[str(id_up)] = new_ket
                         save_data('keterangan_it.json', st.session_state.custom_keterangan)
                         db = get_connection(); cur = db.cursor()
@@ -176,7 +242,6 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
                             save_data('keterangan_it.json', st.session_state.custom_keterangan)
                             db.close(); add_log("DELETE", f"ID #{id_up}"); st.rerun()
                         else: st.error("Akses Hapus Dibatasi")
-            else: st.warning("Akses Edit Dibatasi.")
 
 elif menu == "📦 Inventory Spareparts" and st.session_state.logged_in:
     try:
@@ -188,25 +253,22 @@ elif menu == "Export & Reporting":
     st.markdown("## 📂 Export Data")
     db = get_connection()
     df_ex = pd.read_sql("SELECT * FROM tickets", db); db.close()
-    # Tambah keterangan ke hasil export
     df_ex['Keterangan_IT'] = df_ex['id'].apply(lambda x: st.session_state.custom_keterangan.get(str(x), "-"))
     st.dataframe(df_ex, use_container_width=True)
     st.download_button("📥 DOWNLOAD CSV", df_ex.to_csv(index=False).encode('utf-8'), "IT_Report.csv")
 
 elif menu == "Security Log":
     st.markdown("## 🛡️ User Access Control")
-    target_user = st.selectbox("Atur Akses User:", list(st.secrets["auth"].keys()))
+    target_user = st.selectbox("Pilih User:", list(st.secrets["auth"].keys()))
     current_perms = st.session_state.user_permissions.get(target_user.lower(), ["Input"])
-    
     new_perms = st.multiselect("Izin Akses:", ["Input", "Edit", "Hapus", "Export", "Security"], default=current_perms)
-    if st.button("Simpan Perizinan"):
+    if st.button("Update Hak Akses"):
         st.session_state.user_permissions[target_user.lower()] = new_perms
         save_data('permissions_it.json', st.session_state.user_permissions)
         st.success(f"Akses {target_user} diperbarui!")
-    
     st.divider()
     st.markdown("### 📋 Audit Log")
     st.dataframe(pd.DataFrame(st.session_state.audit_logs), use_container_width=True)
 
 elif menu == "Quick Input Mode":
-    st.info("Silakan Login di Sidebar untuk akses penuh.")
+    st.info("Silakan Login untuk akses menu lengkap.")
