@@ -12,7 +12,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- 2. LOGIKA PERSISTENT SESSION (ANTI-REFRESH) ---
+# --- 2. LOGIKA PERSISTENT SESSION ---
 @st.cache_resource
 def get_auth_state():
     return {"logged_in": False, "user_name": ""}
@@ -40,7 +40,7 @@ def get_connection():
         ssl={'ca': certifi.where()}
     )
 
-# --- 5. CSS CUSTOM (PREMIUM UI) ---
+# --- 5. CSS CUSTOM (PREMIUM UI - TETAP SAMA) ---
 st.markdown("""
     <style>
     .stApp { background: radial-gradient(circle at top right, #0e1117, #1c2533); }
@@ -111,7 +111,6 @@ with st.sidebar:
                 st.error("Credential Salah!")
     else:
         st.markdown(f"<p style='text-align: center;'>Operator: <b>{st.session_state.user_name.upper()}</b></p>", unsafe_allow_html=True)
-        # REVISI: Menu "Buat Tiket Baru" telah dihapus dari navigasi
         menu = st.selectbox("📂 MAIN MENU", ["Dashboard Monitor", "Export & Reporting", "Security Log"])
         if st.button("🔒 LOGOUT", use_container_width=True):
             st.session_state.logged_in = False
@@ -121,7 +120,6 @@ with st.sidebar:
 
 # --- 8. MENU LOGIC ---
 if not st.session_state.logged_in:
-    # Mode Guest tetap diarahkan ke tampilan input, namun menu samping disembunyikan
     menu = "Quick Input Mode"
 
 # --- TAMPILAN DASHBOARD MONITOR ---
@@ -167,7 +165,8 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
                         cur.execute("INSERT INTO tickets (nama_user, cabang, masalah, prioritas, status) VALUES (%s,%s,%s,%s,'Open')", (u_in, c_in, i_in, p_in))
                         db.close()
                         add_log("INPUT", f"Tiket Baru oleh {u_in}")
-                        st.toast("Tiket Berhasil Diinput!")
+                        # Notif Minimalis
+                        st.toast(f"✅ Tiket {u_in} berhasil dikirim!", icon='🚀')
                         st.rerun()
 
     with col_ctrl:
@@ -184,7 +183,7 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
                         cur.execute("UPDATE tickets SET status=%s WHERE id=%s", (st_up, id_up))
                     db.close()
                     add_log("UPDATE", f"ID #{id_up} diubah ke {st_up}")
-                    st.toast("Status Berhasil Diperbarui!")
+                    st.toast("✅ Perubahan Berhasil Disimpan!")
                     st.rerun()
         
         with st.expander("🗑️ Hapus Tiket"):
@@ -195,7 +194,7 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
                     cur.execute("DELETE FROM tickets WHERE id=%s", (id_del))
                     db.close()
                     add_log("DELETE", f"Menghapus Tiket ID #{id_del}")
-                    st.toast("Data Terhapus!")
+                    st.toast("🗑️ Data Telah Dihapus")
                     st.rerun()
 
 elif menu == "Export & Reporting" and st.session_state.logged_in:
@@ -214,7 +213,6 @@ elif menu == "Security Log" and st.session_state.logged_in:
     else: st.info("Belum ada aktivitas terekam.")
 
 elif menu == "Quick Input Mode":
-    # Form untuk Guest tetap ada namun tanpa akses menu lain
     st.markdown("<h1 style='text-align: center;'>📝 Form Laporan IT</h1>", unsafe_allow_html=True)
     _, c2, _ = st.columns([1, 2, 1])
     with c2:
@@ -228,5 +226,5 @@ elif menu == "Quick Input Mode":
                     db = get_connection(); cur = db.cursor()
                     cur.execute("INSERT INTO tickets (nama_user, cabang, masalah, prioritas, status) VALUES (%s,%s,%s,%s,'Open')", (user, cabang, issue, prio))
                     db.close()
-                    st.success("Tiket Anda telah masuk ke sistem antrean IT.")
-                    st.balloons()
+                    # Notif Minimalis untuk Guest
+                    st.success("✅ Laporan Anda telah kami terima.")
