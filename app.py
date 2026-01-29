@@ -13,14 +13,12 @@ st.set_page_config(
 )
 
 # --- 2. LOGIKA PERSISTENT SESSION (ANTI-REFRESH) ---
-# Menggunakan cache internal untuk menyimpan status login secara lokal di server
 @st.cache_resource
 def get_auth_state():
     return {"logged_in": False, "user_name": ""}
 
 auth = get_auth_state()
 
-# Sinkronisasi cache ke session_state tiap kali run
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = auth["logged_in"]
 if 'user_name' not in st.session_state:
@@ -42,7 +40,7 @@ def get_connection():
         ssl={'ca': certifi.where()}
     )
 
-# --- 5. CSS CUSTOM (PREMIUM UI) ---
+# --- 5. CSS CUSTOM (PREMIUM UI - TETAP SAMA) ---
 st.markdown("""
     <style>
     .stApp { background: radial-gradient(circle at top right, #0e1117, #1c2533); }
@@ -105,7 +103,6 @@ with st.sidebar:
             if u in st.secrets["auth"] and p == st.secrets["auth"][u]:
                 st.session_state.logged_in = True
                 st.session_state.user_name = u
-                # Update cache biar awet pas refresh
                 auth["logged_in"] = True
                 auth["user_name"] = u
                 add_log("LOGIN", "Masuk Dashboard")
@@ -114,6 +111,7 @@ with st.sidebar:
                 st.error("Credential Salah!")
     else:
         st.markdown(f"<p style='text-align: center;'>Operator: <b>{st.session_state.user_name.upper()}</b></p>", unsafe_allow_html=True)
+        # Hapus "Buat Tiket Baru" dari list menu jika ingin full di dashboard
         menu = st.selectbox("📂 MAIN MENU", ["Dashboard Monitor", "Export & Reporting", "Security Log", "Buat Tiket Baru"])
         if st.button("🔒 LOGOUT", use_container_width=True):
             st.session_state.logged_in = False
@@ -125,7 +123,7 @@ with st.sidebar:
 if not st.session_state.logged_in:
     menu = "Buat Tiket Baru"
 
-# --- MENU: DASHBOARD ---
+# --- MENU: DASHBOARD (SEKARANG TERMASUK FORM INPUT) ---
 if menu == "Dashboard Monitor" and st.session_state.logged_in:
     st.markdown("## 📊 Monitoring Center")
     db = get_connection()
@@ -138,12 +136,7 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
             axis=1
         )
 
-    # REVISI: Ganti nama kolom untuk tampilan tanpa merubah database
-    df_display = df.rename(columns={
-        'nama_user': 'Nama Teknisi',
-        'masalah': 'Problem',
-        'waktu': 'Waktu Laporan'
-    })
+    df_display = df.rename(columns={'nama_user': 'Nama Teknisi', 'masalah': 'Problem', 'waktu': 'Waktu Laporan'})
 
     q = st.text_input("🔍 Search Console", placeholder="Cari Teknisi, Problem, atau Cabang...")
     if q: 
@@ -157,17 +150,33 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
 
     st.dataframe(df_display, use_container_width=True, hide_index=True)
 
-    st.markdown("<div class='action-header'>⚡ Quick Action Center</div>", unsafe_allow_html=True)
-    col_up, col_del = st.columns(2)
+    # --- BAGIAN GABUNGAN QUICK ACTION & INPUT TIKET ---
+    st.markdown("<div class='action-header'>⚡ Unified Action & Input Center</div>", unsafe_allow_html=True)
+    col_input, col_ctrl = st.columns([1.2, 1])
     
-    with col_up:
+    with col_input:
+        with st.expander("🆕 Input Tiket Baru (Quick Entry)", expanded=True):
+            with st.form("form_quick_entry", clear_on_submit=True):
+                u_in = st.text_input("Nama Lengkap")
+                c_in = st.selectbox("Lokasi Cabang", st.secrets["master"]["daftar_cabang"], key="cab_dash")
+                i_in = st.text_area("Deskripsi Kendala")
+                p_in = st.select_slider("Urgensi", ["Low", "Medium", "High"], key="prio_dash")
+                if st.form_submit_button("KIRIM LAPORAN 🚀", use_container_width=True):
+                    if u_in and i_in:
+                        db = get_connection(); cur = db.cursor()
+                        cur.execute("INSERT INTO tickets (nama_user, cabang, masalah, prioritas, status) VALUES (%s,%s,%s,%s,'Open')", (u_in, c_in, i_in, p_in))
+                        db.close()
+                        add_log("INPUT", f"Tiket Baru oleh {u_in}")
+                        st.toast("Tiket Berhasil Diinput!")
+                        st.rerun()
+
+    with col_ctrl:
         with st.expander("🔄 Update Status Pekerjaan"):
             if not df.empty:
                 id_up = st.selectbox("Pilih ID Tiket", df['id'].tolist(), key="up_select")
                 st_up = st.selectbox("Set Status", ["Open", "In Progress", "Solved", "Closed"])
                 if st.button("SIMPAN PERUBAHAN", type="primary", use_container_width=True):
-                    db = get_connection()
-                    cur = db.cursor()
+                    db = get_connection(); cur = db.cursor()
                     if st_up == "Solved":
                         waktu_fix = get_wib_now().strftime('%Y-%m-%d %H:%M:%S')
                         cur.execute("UPDATE tickets SET status=%s, waktu_selesai=%s WHERE id=%s", (st_up, waktu_fix, id_up))
@@ -177,15 +186,12 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
                     add_log("UPDATE", f"ID #{id_up} diubah ke {st_up}")
                     st.toast("Status Berhasil Diperbarui!")
                     st.rerun()
-
-    with col_del:
-        with st.expander("🗑️ Hapus Tiket (Admin Only)"):
+        
+        with st.expander("🗑️ Hapus Tiket"):
             if not df.empty:
                 id_del = st.selectbox("Pilih ID Hapus", df['id'].tolist(), key="del_select")
-                st.error(f"Peringatan: Menghapus ID #{id_del} tidak dapat dibatalkan.")
                 if st.button("KONFIRMASI HAPUS", use_container_width=True):
-                    db = get_connection()
-                    cur = db.cursor()
+                    db = get_connection(); cur = db.cursor()
                     cur.execute("DELETE FROM tickets WHERE id=%s", (id_del))
                     db.close()
                     add_log("DELETE", f"Menghapus Tiket ID #{id_del}")
@@ -208,6 +214,7 @@ elif menu == "Security Log" and st.session_state.logged_in:
     else: st.info("Belum ada aktivitas terekam.")
 
 elif menu == "Buat Tiket Baru":
+    # Form original tetap dipertahankan jika diakses via sidebar atau mode Guest
     st.markdown("<h1 style='text-align: center;'>📝 Form Laporan IT</h1>", unsafe_allow_html=True)
     c1, c2, c3 = st.columns([1, 2, 1])
     with c2:
@@ -218,8 +225,7 @@ elif menu == "Buat Tiket Baru":
             prio = st.select_slider("Urgensi", ["Low", "Medium", "High"])
             if st.form_submit_button("KIRIM LAPORAN 🚀", use_container_width=True):
                 if user and issue:
-                    db = get_connection()
-                    cur = db.cursor()
+                    db = get_connection(); cur = db.cursor()
                     cur.execute("INSERT INTO tickets (nama_user, cabang, masalah, prioritas, status) VALUES (%s,%s,%s,%s,'Open')", (user, cabang, issue, prio))
                     db.close()
                     st.success("Tiket Anda telah masuk ke sistem antrean IT.")
