@@ -169,7 +169,7 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
                         st.rerun()
 
     with col_ctrl:
-        with st.expander("🔄 Update Status Pekerjaan"):
+        with st.expander("🔄 Update Status Ticket"):
             if not df.empty:
                 id_up = st.selectbox("Pilih ID Tiket", df['id'].tolist(), key="up_select")
                 st_up = st.selectbox("Set Status", ["Open", "In Progress", "Solved", "Closed"])
