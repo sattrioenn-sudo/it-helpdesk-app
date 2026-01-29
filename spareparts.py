@@ -3,7 +3,7 @@ import pandas as pd
 
 def show_sparepart_menu(get_connection, get_wib_now, add_log):
     # Ambil nama DB dari secrets
-    target_db = st.secrets["tidb"]["database"]
+    db_name = st.secrets["tidb"]["database"]
     
     st.markdown("## ⚙️ Sparepart Inventory")
     
@@ -14,8 +14,9 @@ def show_sparepart_menu(get_connection, get_wib_now, add_log):
         st.markdown("<div class='action-header'>Data Inventaris Sparepart</div>", unsafe_allow_html=True)
         try:
             db = get_connection()
-            # PAKSA PILIH DATABASE
-            db.select_db(target_db) 
+            cur = db.cursor()
+            # JURUS PAMUNGKAS: Paksa USE Database sebelum query apa pun
+            cur.execute(f"USE {db_name}")
             
             query = "SELECT id, nama_part, kode_part, kategori, jumlah, keterangan, waktu FROM spareparts ORDER BY id DESC"
             df = pd.read_sql(query, db)
@@ -26,7 +27,23 @@ def show_sparepart_menu(get_connection, get_wib_now, add_log):
             else:
                 st.info("Belum ada data sparepart.")
         except Exception as e:
-            st.error(f"Gagal memuat data: {e}")
+            # Jika tabel belum ada, kita kasih pesan yang jelas
+            if "1146" in str(e):
+                st.warning(f"Tabel 'spareparts' belum ada di database '{db_name}'.")
+                st.code(f"""
+-- Jalankan ini di Konsol TiDB lo:
+CREATE TABLE {db_name}.spareparts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nama_part VARCHAR(255),
+    kode_part VARCHAR(100),
+    kategori VARCHAR(50),
+    jumlah INT,
+    keterangan TEXT,
+    waktu DATETIME
+);
+                """)
+            else:
+                st.error(f"Gagal memuat data: {e}")
 
     with tab_input:
         st.markdown("<div class='action-header'>Tambah Sparepart Baru</div>", unsafe_allow_html=True)
@@ -45,10 +62,10 @@ def show_sparepart_menu(get_connection, get_wib_now, add_log):
                 if p_name and p_code:
                     try:
                         db = get_connection()
-                        # PAKSA PILIH DATABASE SEBELUM INSERT
-                        db.select_db(target_db)
-                        
                         cur = db.cursor()
+                        # Paksa USE Database lagi sebelum INSERT
+                        cur.execute(f"USE {db_name}")
+                        
                         waktu_wib = get_wib_now().strftime('%Y-%m-%d %H:%M:%S')
                         sql = "INSERT INTO spareparts (nama_part, kode_part, kategori, jumlah, keterangan, waktu) VALUES (%s, %s, %s, %s, %s, %s)"
                         cur.execute(sql, (p_name, p_code, p_cat, p_qty, p_desc, waktu_wib))
