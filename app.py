@@ -35,7 +35,7 @@ def get_connection():
         ssl={'ca': certifi.where()}
     )
 
-# --- 5. CSS CUSTOM (PREMIUM UI - TETAP UTUH) ---
+# --- 5. CSS CUSTOM (TETAP UTUH) ---
 st.markdown("""
     <style>
     .stApp { background: radial-gradient(circle at top right, #0e1117, #1c2533); }
@@ -80,7 +80,7 @@ def add_log(action, details):
         "Aksi": action, "Detail": details
     })
 
-# --- 7. SIDEBAR MANAGEMENT (REVISI MENU) ---
+# --- 7. SIDEBAR MANAGEMENT ---
 with st.sidebar:
     st.markdown("<h1 style='text-align: center; color: white;'>🎫 IT-Kemasan Group</h1>", unsafe_allow_html=True)
     wib = get_wib_now()
@@ -106,7 +106,7 @@ with st.sidebar:
                 st.error("Credential Salah!")
     else:
         st.markdown(f"<p style='text-align: center;'>Operator: <b>{st.session_state.user_name.upper()}</b></p>", unsafe_allow_html=True)
-        menu = st.selectbox("📂 MAIN MENU", ["Dashboard Monitor", "📦 Inventory Spareparts", "Export & Reporting", "Security Log"])
+        menu = st.selectbox("📂 MAIN MENU", ["Dashboard Monitor", "Export & Reporting", "Security Log"])
         if st.button("🔒 LOGOUT", use_container_width=True):
             st.session_state.logged_in = False
             auth["logged_in"] = False
@@ -117,24 +117,15 @@ with st.sidebar:
 if not st.session_state.logged_in:
     menu = "Quick Input Mode"
 
-# --- HALAMAN 1: DASHBOARD MONITOR ---
+# --- HALAMAN 1: DASHBOARD MONITOR (GABUNGAN TICKET & SPAREPART) ---
 if menu == "Dashboard Monitor" and st.session_state.logged_in:
     st.markdown("## 📊 Monitoring Center")
     db = get_connection()
     df = pd.read_sql("SELECT * FROM tickets ORDER BY id DESC", db)
     db.close()
 
-    if 'waktu_selesai' in df.columns:
-        df['waktu_selesai'] = df.apply(
-            lambda r: get_wib_now().strftime('%Y-%m-%d %H:%M:%S') if (r['status'] == 'Solved' and (r['waktu_selesai'] is None or str(r['waktu_selesai']) == 'None')) else r['waktu_selesai'],
-            axis=1
-        )
-
     df_display = df.rename(columns={'nama_user': 'Nama Teknisi', 'masalah': 'Problem', 'waktu': 'Waktu Laporan'})
-    q = st.text_input("🔍 Search Console", placeholder="Cari...")
-    if q: 
-        df_display = df_display[df_display.apply(lambda r: r.astype(str).str.contains(q, case=False).any(), axis=1)]
-
+    
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Total Tickets", len(df_display))
     c2.metric("🔴 Open", len(df_display[df_display['status'] == 'Open']))
@@ -143,11 +134,12 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
 
     st.dataframe(df_display, use_container_width=True, hide_index=True)
 
-    st.markdown("<div class='action-header'>⚡ Unified Action & Input Center</div>", unsafe_allow_html=True)
+    # --- BAGIAN TICKET ACTION (TETAP SEPERTI ASLI) ---
+    st.markdown("<div class='action-header'>⚡ Unified Ticket Action Center</div>", unsafe_allow_html=True)
     col_input, col_ctrl = st.columns([1.2, 1])
     
     with col_input:
-        with st.expander("🆕 Input Tiket Baru (Quick Entry)", expanded=True):
+        with st.expander("🆕 Input Tiket Baru", expanded=True):
             with st.form("form_quick_entry", clear_on_submit=True):
                 u_in = st.text_input("Nama Lengkap")
                 c_in = st.selectbox("Lokasi Cabang", st.secrets["master"]["daftar_cabang"])
@@ -161,14 +153,11 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
                         db.close(); add_log("INPUT", f"Tiket: {u_in}"); st.rerun()
 
     with col_ctrl:
-        with st.expander("🔄 Update / 🗑️ Hapus", expanded=True):
+        with st.expander("🔄 Update / 🗑️ Hapus Tiket", expanded=True):
             if not df.empty:
                 id_up = st.selectbox("Pilih ID Tiket", df['id'].tolist())
                 st_up = st.selectbox("Set Status", ["Open", "In Progress", "Solved", "Closed"])
-                
-                # Container untuk tombol agar rapi sejajar
                 c_btn1, c_btn2 = st.columns(2)
-                
                 with c_btn1:
                     if st.button("💾 SIMPAN", use_container_width=True, type="primary"):
                         db = get_connection(); cur = db.cursor()
@@ -177,21 +166,21 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
                         else:
                             cur.execute("UPDATE tickets SET status=%s WHERE id=%s", (st_up, id_up))
                         db.close(); add_log("UPDATE", f"ID #{id_up} -> {st_up}"); st.rerun()
-                
                 with c_btn2:
                     if st.button("🗑️ HAPUS", use_container_width=True):
                         db = get_connection(); cur = db.cursor()
                         cur.execute("DELETE FROM tickets WHERE id=%s", (id_up,))
                         db.close(); add_log("DELETE", f"Hapus Tiket ID #{id_up}"); st.rerun()
 
-# --- HALAMAN LAINNYA TETAP SAMA ---
-elif menu == "📦 Inventory Spareparts" and st.session_state.logged_in:
+    # --- PENAMBAHAN PROGRAM SPAREPART DI BAWAH (TANPA RUBAH MENU) ---
+    st.markdown("<div class='action-header'>📦 Inventory Spareparts System</div>", unsafe_allow_html=True)
     try:
         from spareparts import show_sparepart_menu
         show_sparepart_menu(get_connection, get_wib_now, add_log)
     except Exception as e:
-        st.error(f"Error loading spareparts.py: {e}")
+        st.error(f"Gagal memuat spareparts: {e}")
 
+# --- HALAMAN LAINNYA ---
 elif menu == "Export & Reporting" and st.session_state.logged_in:
     st.markdown("## 📂 Financial & Operations Report")
     db = get_connection()
