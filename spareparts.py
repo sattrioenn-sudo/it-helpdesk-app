@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 
 def show_sparepart_menu(get_connection, get_wib_now, add_log):
+    # Ambil nama database dari secrets agar query lebih spesifik
+    db_name = st.secrets["tidb"]["database"]
+    
     st.markdown("## ⚙️ Sparepart Inventory")
     
     # UI Tabs agar minimalis
@@ -11,8 +14,9 @@ def show_sparepart_menu(get_connection, get_wib_now, add_log):
         st.markdown("<div class='action-header'>Data Inventaris Sparepart</div>", unsafe_allow_html=True)
         try:
             db = get_connection()
-            # Query ke tabel spareparts
-            df = pd.read_sql("SELECT id, nama_part, kode_part, kategori, jumlah, keterangan, waktu FROM spareparts ORDER BY id DESC", db)
+            # REVISI: Menambahkan nama database ke dalam query (db_name.tabel)
+            query = f"SELECT id, nama_part, kode_part, kategori, jumlah, keterangan, waktu FROM {db_name}.spareparts ORDER BY id DESC"
+            df = pd.read_sql(query, db)
             db.close()
             
             if not df.empty:
@@ -20,7 +24,7 @@ def show_sparepart_menu(get_connection, get_wib_now, add_log):
             else:
                 st.info("Belum ada data sparepart.")
         except Exception as e:
-            st.error("Gagal memuat data. Pastikan tabel 'spareparts' sudah ada di database.")
+            st.error(f"Gagal memuat data: {e}")
 
     with tab_input:
         st.markdown("<div class='action-header'>Tambah Sparepart Baru</div>", unsafe_allow_html=True)
@@ -41,7 +45,10 @@ def show_sparepart_menu(get_connection, get_wib_now, add_log):
                         db = get_connection()
                         cur = db.cursor()
                         waktu_wib = get_wib_now().strftime('%Y-%m-%d %H:%M:%S')
-                        sql = "INSERT INTO spareparts (nama_part, kode_part, kategori, jumlah, keterangan, waktu) VALUES (%s, %s, %s, %s, %s, %s)"
+                        
+                        # REVISI: Menambahkan nama database ke dalam query INSERT
+                        sql = f"INSERT INTO {db_name}.spareparts (nama_part, kode_part, kategori, jumlah, keterangan, waktu) VALUES (%s, %s, %s, %s, %s, %s)"
+                        
                         cur.execute(sql, (p_name, p_code, p_cat, p_qty, p_desc, waktu_wib))
                         db.close()
                         
