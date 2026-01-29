@@ -21,7 +21,6 @@ if 'user_name' not in st.session_state:
 
 # --- 3. FUNGSI WAKTU WIB (FIXED) ---
 def get_wib_now():
-    # Mengambil waktu UTC lalu ditambah 7 jam untuk ke WIB
     return datetime.utcnow() + timedelta(hours=7)
 
 # --- 4. DATABASE CONNECTION ---
@@ -36,7 +35,7 @@ def get_connection():
         ssl={'ca': certifi.where()}
     )
 
-# --- 5. CSS CUSTOM (PREMIUM UI) ---
+# --- 5. CSS CUSTOM (PREMIUM UI - TETAP UTUH) ---
 st.markdown("""
     <style>
     .stApp { background: radial-gradient(circle at top right, #0e1117, #1c2533); }
@@ -81,7 +80,7 @@ def add_log(action, details):
         "Aksi": action, "Detail": details
     })
 
-# --- 7. SIDEBAR MANAGEMENT ---
+# --- 7. SIDEBAR MANAGEMENT (REVISI MENU) ---
 with st.sidebar:
     st.markdown("<h1 style='text-align: center; color: white;'>🎫 IT-Kemasan Group</h1>", unsafe_allow_html=True)
     wib = get_wib_now()
@@ -107,7 +106,8 @@ with st.sidebar:
                 st.error("Credential Salah!")
     else:
         st.markdown(f"<p style='text-align: center;'>Operator: <b>{st.session_state.user_name.upper()}</b></p>", unsafe_allow_html=True)
-        menu = st.selectbox("📂 MAIN MENU", ["Dashboard Monitor", "Export & Reporting", "Security Log"])
+        # PENAMBAHAN MENU SPAREPART DI SINI
+        menu = st.selectbox("📂 MAIN MENU", ["Dashboard Monitor", "📦 Inventory Spareparts", "Export & Reporting", "Security Log"])
         if st.button("🔒 LOGOUT", use_container_width=True):
             st.session_state.logged_in = False
             auth["logged_in"] = False
@@ -118,14 +118,13 @@ with st.sidebar:
 if not st.session_state.logged_in:
     menu = "Quick Input Mode"
 
-# --- TAMPILAN DASHBOARD MONITOR ---
+# --- HALAMAN 1: DASHBOARD MONITOR ---
 if menu == "Dashboard Monitor" and st.session_state.logged_in:
     st.markdown("## 📊 Monitoring Center")
     db = get_connection()
     df = pd.read_sql("SELECT * FROM tickets ORDER BY id DESC", db)
     db.close()
 
-    # Perbaikan Waktu Selesai (WIB)
     if 'waktu_selesai' in df.columns:
         df['waktu_selesai'] = df.apply(
             lambda r: get_wib_now().strftime('%Y-%m-%d %H:%M:%S') if (r['status'] == 'Solved' and (r['waktu_selesai'] is None or str(r['waktu_selesai']) == 'None')) else r['waktu_selesai'],
@@ -133,8 +132,7 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
         )
 
     df_display = df.rename(columns={'nama_user': 'Nama Teknisi', 'masalah': 'Problem', 'waktu': 'Waktu Laporan'})
-
-    q = st.text_input("🔍 Search Console", placeholder="Cari Teknisi, Problem, atau Cabang...")
+    q = st.text_input("🔍 Search Console", placeholder="Cari...")
     if q: 
         df_display = df_display[df_display.apply(lambda r: r.astype(str).str.contains(q, case=False).any(), axis=1)]
 
@@ -159,72 +157,56 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
                 if st.form_submit_button("KIRIM LAPORAN 🚀", use_container_width=True):
                     if u_in and i_in:
                         db = get_connection(); cur = db.cursor()
-                        # INSERT WAKTU SEKARANG (WIB)
                         now_wib = get_wib_now().strftime('%Y-%m-%d %H:%M:%S')
-                        cur.execute("INSERT INTO tickets (nama_user, cabang, masalah, prioritas, status, waktu) VALUES (%s,%s,%s,%s,'Open',%s)", 
-                                    (u_in, c_in, i_in, p_in, now_wib))
-                        db.close()
-                        add_log("INPUT", f"Tiket Baru oleh {u_in}")
-                        st.toast(f"✅ Tiket {u_in} berhasil dikirim!", icon='🚀')
-                        st.rerun()
+                        cur.execute("INSERT INTO tickets (nama_user, cabang, masalah, prioritas, status, waktu) VALUES (%s,%s,%s,%s,'Open',%s)", (u_in, c_in, i_in, p_in, now_wib))
+                        db.close(); add_log("INPUT", f"Tiket: {u_in}"); st.rerun()
 
     with col_ctrl:
-        with st.expander("🔄 Update Status Ticket"):
+        with st.expander("🔄 Update / 🗑️ Hapus"):
             if not df.empty:
-                id_up = st.selectbox("Pilih ID Tiket", df['id'].tolist(), key="up_select")
+                id_up = st.selectbox("Pilih ID Tiket", df['id'].tolist())
                 st_up = st.selectbox("Set Status", ["Open", "In Progress", "Solved", "Closed"])
-                if st.button("SIMPAN PERUBAHAN", type="primary", use_container_width=True):
+                if st.button("SIMPAN PERUBAHAN", use_container_width=True):
                     db = get_connection(); cur = db.cursor()
                     if st_up == "Solved":
-                        waktu_fix = get_wib_now().strftime('%Y-%m-%d %H:%M:%S')
-                        cur.execute("UPDATE tickets SET status=%s, waktu_selesai=%s WHERE id=%s", (st_up, waktu_fix, id_up))
+                        cur.execute("UPDATE tickets SET status=%s, waktu_selesai=%s WHERE id=%s", (st_up, get_wib_now().strftime('%Y-%m-%d %H:%M:%S'), id_up))
                     else:
                         cur.execute("UPDATE tickets SET status=%s WHERE id=%s", (st_up, id_up))
-                    db.close()
-                    add_log("UPDATE", f"ID #{id_up} diubah ke {st_up}")
-                    st.toast("✅ Perubahan Berhasil Disimpan!")
-                    st.rerun()
-        
-        with st.expander("🗑️ Hapus Tiket"):
-            if not df.empty:
-                id_del = st.selectbox("Pilih ID Hapus", df['id'].tolist(), key="del_select")
-                if st.button("KONFIRMASI HAPUS", use_container_width=True):
-                    db = get_connection(); cur = db.cursor()
-                    cur.execute("DELETE FROM tickets WHERE id=%s", (id_del))
-                    db.close()
-                    add_log("DELETE", f"Menghapus Tiket ID #{id_del}")
-                    st.toast("🗑️ Data Telah Dihapus")
-                    st.rerun()
+                    db.close(); st.rerun()
 
+# --- HALAMAN 2: SPAREPART INVENTORY (PANGGIL FILE spareparts.py) ---
+elif menu == "📦 Inventory Spareparts" and st.session_state.logged_in:
+    try:
+        from spareparts import show_sparepart_menu
+        show_sparepart_menu(get_connection, get_wib_now, add_log)
+    except Exception as e:
+        st.error(f"Error loading spareparts.py: {e}")
+
+# --- HALAMAN 3: EXPORT ---
 elif menu == "Export & Reporting" and st.session_state.logged_in:
     st.markdown("## 📂 Financial & Operations Report")
     db = get_connection()
-    df_ex = pd.read_sql("SELECT * FROM tickets", db)
-    db.close()
+    df_ex = pd.read_sql("SELECT * FROM tickets", db); db.close()
     st.dataframe(df_ex, use_container_width=True)
-    csv = df_ex.to_csv(index=False).encode('utf-8')
-    st.download_button("📥 DOWNLOAD CSV", csv, f"Report_IT_{get_wib_now().strftime('%Y%m%d')}.csv", "text/csv", use_container_width=True)
+    st.download_button("📥 DOWNLOAD CSV", df_ex.to_csv(index=False).encode('utf-8'), "Report.csv", "text/csv")
 
+# --- HALAMAN 4: SECURITY ---
 elif menu == "Security Log" and st.session_state.logged_in:
     st.markdown("## 🛡️ Security Audit Log")
     if st.session_state.audit_logs:
         st.dataframe(pd.DataFrame(st.session_state.audit_logs), use_container_width=True, hide_index=True)
-    else: st.info("Belum ada aktivitas terekam.")
 
+# --- HALAMAN GUEST ---
 elif menu == "Quick Input Mode":
     st.markdown("<h1 style='text-align: center;'>📝 Form Laporan IT</h1>", unsafe_allow_html=True)
-    _, c2, _ = st.columns([1, 2, 1])
-    with c2:
-        with st.form("form_guest", clear_on_submit=True):
-            user = st.text_input("Nama Lengkap")
-            cabang = st.selectbox("Lokasi Cabang", st.secrets["master"]["daftar_cabang"])
-            issue = st.text_area("Deskripsi Kendala")
-            prio = st.select_slider("Urgensi", ["Low", "Medium", "High"])
-            if st.form_submit_button("KIRIM LAPORAN 🚀", use_container_width=True):
-                if user and issue:
-                    db = get_connection(); cur = db.cursor()
-                    now_wib = get_wib_now().strftime('%Y-%m-%d %H:%M:%S')
-                    cur.execute("INSERT INTO tickets (nama_user, cabang, masalah, prioritas, status, waktu) VALUES (%s,%s,%s,%s,'Open',%s)", 
-                                (user, cabang, issue, prio, now_wib))
-                    db.close()
-                    st.success("✅ Laporan Anda telah kami terima.")
+    with st.form("form_guest", clear_on_submit=True):
+        user = st.text_input("Nama Lengkap")
+        cabang = st.selectbox("Lokasi Cabang", st.secrets["master"]["daftar_cabang"])
+        issue = st.text_area("Deskripsi Kendala")
+        prio = st.select_slider("Urgensi", ["Low", "Medium", "High"])
+        if st.form_submit_button("KIRIM LAPORAN 🚀", use_container_width=True):
+            if user and issue:
+                db = get_connection(); cur = db.cursor()
+                now_wib = get_wib_now().strftime('%Y-%m-%d %H:%M:%S')
+                cur.execute("INSERT INTO tickets (nama_user, cabang, masalah, prioritas, status, waktu) VALUES (%s,%s,%s,%s,'Open',%s)", (user, cabang, issue, prio, now_wib))
+                db.close(); st.success("Terkirim!")
