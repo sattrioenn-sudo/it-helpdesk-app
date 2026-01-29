@@ -40,7 +40,7 @@ def get_connection():
         ssl={'ca': certifi.where()}
     )
 
-# --- 5. CSS CUSTOM (PREMIUM UI - TETAP SAMA) ---
+# --- 5. CSS CUSTOM (PREMIUM UI) ---
 st.markdown("""
     <style>
     .stApp { background: radial-gradient(circle at top right, #0e1117, #1c2533); }
@@ -111,8 +111,8 @@ with st.sidebar:
                 st.error("Credential Salah!")
     else:
         st.markdown(f"<p style='text-align: center;'>Operator: <b>{st.session_state.user_name.upper()}</b></p>", unsafe_allow_html=True)
-        # Hapus "Buat Tiket Baru" dari list menu jika ingin full di dashboard
-        menu = st.selectbox("📂 MAIN MENU", ["Dashboard Monitor", "Export & Reporting", "Security Log", "Buat Tiket Baru"])
+        # REVISI: Menu "Buat Tiket Baru" telah dihapus dari navigasi
+        menu = st.selectbox("📂 MAIN MENU", ["Dashboard Monitor", "Export & Reporting", "Security Log"])
         if st.button("🔒 LOGOUT", use_container_width=True):
             st.session_state.logged_in = False
             auth["logged_in"] = False
@@ -121,9 +121,10 @@ with st.sidebar:
 
 # --- 8. MENU LOGIC ---
 if not st.session_state.logged_in:
-    menu = "Buat Tiket Baru"
+    # Mode Guest tetap diarahkan ke tampilan input, namun menu samping disembunyikan
+    menu = "Quick Input Mode"
 
-# --- MENU: DASHBOARD (SEKARANG TERMASUK FORM INPUT) ---
+# --- TAMPILAN DASHBOARD MONITOR ---
 if menu == "Dashboard Monitor" and st.session_state.logged_in:
     st.markdown("## 📊 Monitoring Center")
     db = get_connection()
@@ -150,7 +151,6 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
 
     st.dataframe(df_display, use_container_width=True, hide_index=True)
 
-    # --- BAGIAN GABUNGAN QUICK ACTION & INPUT TIKET ---
     st.markdown("<div class='action-header'>⚡ Unified Action & Input Center</div>", unsafe_allow_html=True)
     col_input, col_ctrl = st.columns([1.2, 1])
     
@@ -158,9 +158,9 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
         with st.expander("🆕 Input Tiket Baru (Quick Entry)", expanded=True):
             with st.form("form_quick_entry", clear_on_submit=True):
                 u_in = st.text_input("Nama Lengkap")
-                c_in = st.selectbox("Lokasi Cabang", st.secrets["master"]["daftar_cabang"], key="cab_dash")
+                c_in = st.selectbox("Lokasi Cabang", st.secrets["master"]["daftar_cabang"])
                 i_in = st.text_area("Deskripsi Kendala")
-                p_in = st.select_slider("Urgensi", ["Low", "Medium", "High"], key="prio_dash")
+                p_in = st.select_slider("Urgensi", ["Low", "Medium", "High"])
                 if st.form_submit_button("KIRIM LAPORAN 🚀", use_container_width=True):
                     if u_in and i_in:
                         db = get_connection(); cur = db.cursor()
@@ -213,12 +213,12 @@ elif menu == "Security Log" and st.session_state.logged_in:
         st.dataframe(pd.DataFrame(st.session_state.audit_logs), use_container_width=True, hide_index=True)
     else: st.info("Belum ada aktivitas terekam.")
 
-elif menu == "Buat Tiket Baru":
-    # Form original tetap dipertahankan jika diakses via sidebar atau mode Guest
+elif menu == "Quick Input Mode":
+    # Form untuk Guest tetap ada namun tanpa akses menu lain
     st.markdown("<h1 style='text-align: center;'>📝 Form Laporan IT</h1>", unsafe_allow_html=True)
-    c1, c2, c3 = st.columns([1, 2, 1])
+    _, c2, _ = st.columns([1, 2, 1])
     with c2:
-        with st.form("form_entry", clear_on_submit=True):
+        with st.form("form_guest", clear_on_submit=True):
             user = st.text_input("Nama Lengkap")
             cabang = st.selectbox("Lokasi Cabang", st.secrets["master"]["daftar_cabang"])
             issue = st.text_area("Deskripsi Kendala")
