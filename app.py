@@ -2,167 +2,225 @@ import streamlit as st
 import pymysql
 import pandas as pd
 import certifi
-import pytz
-import plotly.express as px
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
+import io
 
-# --- 1. SETTING HALAMAN ---
-st.set_page_config(page_title="APLICATION", page_icon="💎", layout="wide")
+# --- 1. KONFIGURASI & THEME ---
+st.set_page_config(
+    page_title="IT Kemasan", 
+    page_icon="🎫", 
+    layout="wide"
+)
 
-# --- 2. PERSISTENCE LOGIN (ANTI-REFRESH) ---
+# --- 2. LOGIKA PERSISTENT SESSION (ANTI-REFRESH) ---
+# Menggunakan cache internal untuk menyimpan status login secara lokal di server
 @st.cache_resource
 def get_auth_state():
-    return {"logged_in": False, "user": "", "perms": []}
+    return {"logged_in": False, "user_name": ""}
 
-auth_cache = get_auth_state()
+auth = get_auth_state()
 
-# Inisialisasi Session State agar data tidak hilang/error
-if "logged_in" not in st.session_state:
-    st.session_state["logged_in"] = auth_cache["logged_in"]
-if "current_user" not in st.session_state:
-    st.session_state["current_user"] = auth_cache["user"]
-if "user_perms" not in st.session_state:
-    st.session_state["user_perms"] = auth_cache["perms"]
-if "global_login_tracker" not in st.session_state:
-    st.session_state["global_login_tracker"] = {}
-if "security_logs" not in st.session_state:
-    st.session_state["security_logs"] = []
-if "user_db" not in st.session_state:
-    st.session_state["user_db"] = {
-        "admin": ["kcs_2026", "Admin", ["Dashboard IT", "Monitor IT", "POS Inventory", "Masuk", "Keluar", "Edit", "User Management", "Security"]]
-    }
+# Sinkronisasi cache ke session_state tiap kali run
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = auth["logged_in"]
+if 'user_name' not in st.session_state:
+    st.session_state.user_name = auth["user_name"]
 
-# --- 3. KONEKSI DATABASE (UNIFIED PYMYSQL) ---
-def get_db_conn():
+# --- 3. FUNGSI WAKTU WIB ---
+def get_wib_now():
+    return datetime.now() + timedelta(hours=7)
+
+# --- 4. DATABASE CONNECTION ---
+def get_connection():
     return pymysql.connect(
-        **st.secrets["tidb"],
+        host=st.secrets["tidb"]["host"],
+        port=int(st.secrets["tidb"]["port"]),
+        user=st.secrets["tidb"]["user"],
+        password=st.secrets["tidb"]["password"],
+        database=st.secrets["tidb"]["database"],
         autocommit=True,
         ssl={'ca': certifi.where()}
     )
 
-def get_wib():
-    return datetime.now(pytz.timezone('Asia/Jakarta'))
-
-def parse_detail(val):
-    parts = [p.strip() for p in str(val).split('|')]
-    while len(parts) < 6: parts.append("-")
-    return parts
-
-# --- 4. CSS QUANTUM DASHBOARD (MURNI PUNYA LO) ---
+# --- 5. CSS CUSTOM (PREMIUM UI) ---
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap');
-    html, body, [class*="css"] { font-family: 'Plus Jakarta Sans', sans-serif; }
-    .stApp { background: radial-gradient(circle at top right, #1e1b4b, #0f172a, #020617); color: #f8fafc; }
-    .glass-card {
+    .stApp { background: radial-gradient(circle at top right, #0e1117, #1c2533); }
+    div[data-testid="metric-container"] {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.1);
-        padding: 1.5rem; border-radius: 20px;
-        backdrop-filter: blur(15px); margin-bottom: 20px;
+        backdrop-filter: blur(10px);
+        padding: 20px; border-radius: 15px;
+        color: white !important;
     }
-    .shimmer-text {
-        background: linear-gradient(90deg, #38bdf8, #818cf8, #c084fc, #38bdf8);
-        background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        animation: shimmer 3s linear infinite; font-weight: 800; font-size: 2.2rem;
+    section[data-testid="stSidebar"] {
+        background-color: #0e1117 !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
     }
-    @keyframes shimmer { to { background-position: 200% center; } }
-    .stat-label { color: #94a3b8; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
-    .stat-value { font-size: 1.8rem; font-weight: 800; color: #ffffff; margin-top: 5px; }
-    .session-info {
-        background: rgba(56, 189, 248, 0.05);
-        border: 1px solid rgba(56, 189, 248, 0.2);
-        padding: 12px; border-radius: 12px; margin-bottom: 15px;
+    .clock-box {
+        background: linear-gradient(135deg, #1d4ed8 0%, #10b981 100%);
+        padding: 15px; border-radius: 12px; text-align: center;
+        margin-bottom: 25px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    }
+    .digital-clock {
+        font-family: 'JetBrains Mono', monospace;
+        color: white; font-size: 28px; font-weight: 800;
+    }
+    .stDataFrame { border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 15px; }
+    .action-header {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 10px 20px; border-radius: 10px;
+        border-left: 5px solid #1d4ed8; margin: 20px 0;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 5. LOGIC AUTH ---
-if not st.session_state["logged_in"]:
-    st.markdown("<br><br><br>", unsafe_allow_html=True)
-    _, col2, _ = st.columns([1, 1, 1])
-    with col2:
-        st.markdown("<div style='text-align:center;'><h1 class='shimmer-text'>SATRIO POS</h1></div>", unsafe_allow_html=True)
-        with st.form("login"):
-            u = st.text_input("Username")
-            p = st.text_input("Password", type="password")
-            if st.form_submit_button("SYSTEM ENTRY"):
-                if u in st.session_state["user_db"] and str(p) == str(st.session_state["user_db"][u][0]):
-                    now_str = get_wib().strftime('%d/%m/%Y %H:%M')
-                    st.session_state.update({
-                        "logged_in": True, "current_user": u, 
-                        "user_perms": st.session_state["user_db"][u][2],
-                        "last_login_display": now_str, "current_login_time": now_str
-                    })
-                    auth_cache.update({"logged_in": True, "user": u, "perms": st.session_state["user_db"][u][2]})
-                    st.rerun()
-                else: st.error("Invalid Credentials")
-else:
-    # --- 6. SIDEBAR ---
-    with st.sidebar:
-        st.markdown(f"<h2 class='shimmer-text' style='font-size:1.5rem;'>{st.session_state['current_user'].upper()}</h2>", unsafe_allow_html=True)
-        st.markdown(f"""<div class="session-info">
-            <div style="font-size:0.65rem; color:#94a3b8;">LOGIN: {st.session_state.get('current_login_time')}</div>
-        </div>""", unsafe_allow_html=True)
-        
-        all_menus = {
-            "📊 Dashboard IT": "Dashboard IT",
-            "🖥️ Monitor IT": "Monitor IT",
-            "📦 POS Inventory": "POS Inventory",
-            "➕ Barang Masuk": "Masuk",
-            "📤 Barang Keluar": "Keluar",
-            "🔧 Kontrol POS": "Edit",
-            "👥 User Management": "User Management",
-            "🛡️ Security Logs": "Security",
-            "📝 Buat Tiket IT": "Buat Tiket"
-        }
-        nav_options = [m for m, p in all_menus.items() if p in st.session_state["user_perms"] or p == "Buat Tiket"]
-        menu = st.selectbox("MENU NAVIGATION", nav_options)
-        
-        if st.button("🚪 LOGOUT", use_container_width=True):
-            st.session_state["logged_in"] = False
-            auth_cache["logged_in"] = False
+# --- 6. LOGIKA AUDIT LOG ---
+if 'audit_logs' not in st.session_state:
+    st.session_state.audit_logs = []
+
+def add_log(action, details):
+    waktu = get_wib_now().strftime('%H:%M:%S')
+    st.session_state.audit_logs.insert(0, {
+        "Waktu": waktu,
+        "User": st.session_state.user_name.upper() if st.session_state.user_name else "GUEST",
+        "Aksi": action, "Detail": details
+    })
+
+# --- 7. SIDEBAR MANAGEMENT ---
+with st.sidebar:
+    st.markdown("<h1 style='text-align: center; color: white;'>🎫 IT-Kemasan Group</h1>", unsafe_allow_html=True)
+    wib = get_wib_now()
+    st.markdown(f"""
+        <div class="clock-box">
+            <div class="digital-clock">{wib.strftime('%H:%M:%S')}</div>
+            <div style="color: white; font-size: 12px; opacity: 0.9;">{wib.strftime('%A, %d %B %Y')}</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    if not st.session_state.logged_in:
+        u = st.text_input("Username")
+        p = st.text_input("Password", type="password")
+        if st.button("🔓 SIGN IN", use_container_width=True, type="primary"):
+            if u in st.secrets["auth"] and p == st.secrets["auth"][u]:
+                st.session_state.logged_in = True
+                st.session_state.user_name = u
+                # Update cache biar awet pas refresh
+                auth["logged_in"] = True
+                auth["user_name"] = u
+                add_log("LOGIN", "Masuk Dashboard")
+                st.rerun()
+            else:
+                st.error("Credential Salah!")
+    else:
+        st.markdown(f"<p style='text-align: center;'>Operator: <b>{st.session_state.user_name.upper()}</b></p>", unsafe_allow_html=True)
+        menu = st.selectbox("📂 MAIN MENU", ["Dashboard Monitor", "Export & Reporting", "Security Log", "Buat Tiket Baru"])
+        if st.button("🔒 LOGOUT", use_container_width=True):
+            st.session_state.logged_in = False
+            auth["logged_in"] = False
+            auth["user_name"] = ""
             st.rerun()
 
-    # --- 7. MENU ROUTING ---
+# --- 8. MENU LOGIC ---
+if not st.session_state.logged_in:
+    menu = "Buat Tiket Baru"
 
-    # MONITOR IT (REVISI NAMA KOLOM)
-    if menu == "🖥️ Monitor IT":
-        st.markdown("<h1 class='shimmer-text'>IT Monitor Tower</h1>", unsafe_allow_html=True)
-        try:
-            conn = get_db_conn()
-            df_it = pd.read_sql("SELECT * FROM tickets ORDER BY id DESC", conn)
-            conn.close()
-            df_display = df_it.rename(columns={'nama_user': 'Nama Teknisi', 'masalah': 'Problem', 'waktu': 'Waktu Laporan'})
-            st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
-            st.dataframe(df_display, use_container_width=True, hide_index=True)
-            st.markdown("</div>", unsafe_allow_html=True)
-        except Exception as e: st.error(f"Data IT Error: {e}")
+# --- MENU: DASHBOARD ---
+if menu == "Dashboard Monitor" and st.session_state.logged_in:
+    st.markdown("## 📊 Monitoring Center")
+    db = get_connection()
+    df = pd.read_sql("SELECT * FROM tickets ORDER BY id DESC", db)
+    db.close()
 
-    # POS INVENTORY (DATA ASLI LO)
-    elif menu == "📦 POS Inventory":
-        st.markdown("<h1 class='shimmer-text'>Control Tower</h1>", unsafe_allow_html=True)
-        try:
-            conn = get_db_conn()
-            df_raw = pd.read_sql("SELECT * FROM inventory ORDER BY id DESC", conn)
-            conn.close()
-            if not df_raw.empty:
-                p_data = df_raw['nama_barang'].apply(parse_detail)
-                df_raw['SKU'], df_raw['Item'] = p_data.apply(lambda x: x[0]), p_data.apply(lambda x: x[1])
-                df_raw['adj'] = df_raw.apply(lambda x: x['jumlah'] if x['jenis_mutasi'] == 'Masuk' else -x['jumlah'], axis=1)
-                stok_summary = df_raw.groupby(['SKU', 'Item'])['adj'].sum().reset_index(name='Stock')
-                st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
-                st.dataframe(stok_summary, use_container_width=True, hide_index=True)
-                st.markdown("</div>", unsafe_allow_html=True)
-        except Exception as e: st.error(f"Data POS Error: {e}")
+    if 'waktu_selesai' in df.columns:
+        df['waktu_selesai'] = df.apply(
+            lambda r: get_wib_now().strftime('%Y-%m-%d %H:%M:%S') if (r['status'] == 'Solved' and (r['waktu_selesai'] is None or str(r['waktu_selesai']) == 'None')) else r['waktu_selesai'],
+            axis=1
+        )
 
-    # FORM TIKET IT
-    elif menu == "📝 Buat Tiket IT":
-        st.markdown("<h1 class='shimmer-text'>Laporan IT</h1>", unsafe_allow_html=True)
-        with st.form("tiket"):
-            nama = st.text_input("Nama")
-            mas = st.text_area("Kendala")
-            if st.form_submit_button("KIRIM"):
-                conn = get_db_conn(); cur = conn.cursor()
-                cur.execute("INSERT INTO tickets (nama_user, masalah, status, waktu) VALUES (%s,%s,'Open',%s)", 
-                            (nama, mas, get_wib().strftime('%Y-%m-%d %H:%M:%S')))
-                conn.close(); st.success("Berhasil!"); st.rerun()
+    # REVISI: Ganti nama kolom untuk tampilan tanpa merubah database
+    df_display = df.rename(columns={
+        'nama_user': 'Nama Teknisi',
+        'masalah': 'Problem',
+        'waktu': 'Waktu Laporan'
+    })
+
+    q = st.text_input("🔍 Search Console", placeholder="Cari Teknisi, Problem, atau Cabang...")
+    if q: 
+        df_display = df_display[df_display.apply(lambda r: r.astype(str).str.contains(q, case=False).any(), axis=1)]
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Total Tickets", len(df_display))
+    c2.metric("🔴 Open", len(df_display[df_display['status'] == 'Open']))
+    c3.metric("🟡 In Progress", len(df_display[df_display['status'] == 'In Progress']))
+    c4.metric("🟢 Solved", len(df_display[df_display['status'] == 'Solved']))
+
+    st.dataframe(df_display, use_container_width=True, hide_index=True)
+
+    st.markdown("<div class='action-header'>⚡ Quick Action Center</div>", unsafe_allow_html=True)
+    col_up, col_del = st.columns(2)
+    
+    with col_up:
+        with st.expander("🔄 Update Status Pekerjaan"):
+            if not df.empty:
+                id_up = st.selectbox("Pilih ID Tiket", df['id'].tolist(), key="up_select")
+                st_up = st.selectbox("Set Status", ["Open", "In Progress", "Solved", "Closed"])
+                if st.button("SIMPAN PERUBAHAN", type="primary", use_container_width=True):
+                    db = get_connection()
+                    cur = db.cursor()
+                    if st_up == "Solved":
+                        waktu_fix = get_wib_now().strftime('%Y-%m-%d %H:%M:%S')
+                        cur.execute("UPDATE tickets SET status=%s, waktu_selesai=%s WHERE id=%s", (st_up, waktu_fix, id_up))
+                    else:
+                        cur.execute("UPDATE tickets SET status=%s WHERE id=%s", (st_up, id_up))
+                    db.close()
+                    add_log("UPDATE", f"ID #{id_up} diubah ke {st_up}")
+                    st.toast("Status Berhasil Diperbarui!")
+                    st.rerun()
+
+    with col_del:
+        with st.expander("🗑️ Hapus Tiket (Admin Only)"):
+            if not df.empty:
+                id_del = st.selectbox("Pilih ID Hapus", df['id'].tolist(), key="del_select")
+                st.error(f"Peringatan: Menghapus ID #{id_del} tidak dapat dibatalkan.")
+                if st.button("KONFIRMASI HAPUS", use_container_width=True):
+                    db = get_connection()
+                    cur = db.cursor()
+                    cur.execute("DELETE FROM tickets WHERE id=%s", (id_del))
+                    db.close()
+                    add_log("DELETE", f"Menghapus Tiket ID #{id_del}")
+                    st.toast("Data Terhapus!")
+                    st.rerun()
+
+elif menu == "Export & Reporting" and st.session_state.logged_in:
+    st.markdown("## 📂 Financial & Operations Report")
+    db = get_connection()
+    df_ex = pd.read_sql("SELECT * FROM tickets", db)
+    db.close()
+    st.dataframe(df_ex, use_container_width=True)
+    csv = df_ex.to_csv(index=False).encode('utf-8')
+    st.download_button("📥 DOWNLOAD CSV", csv, f"Report_IT_{get_wib_now().strftime('%Y%m%d')}.csv", "text/csv", use_container_width=True)
+
+elif menu == "Security Log" and st.session_state.logged_in:
+    st.markdown("## 🛡️ Security Audit Log")
+    if st.session_state.audit_logs:
+        st.dataframe(pd.DataFrame(st.session_state.audit_logs), use_container_width=True, hide_index=True)
+    else: st.info("Belum ada aktivitas terekam.")
+
+elif menu == "Buat Tiket Baru":
+    st.markdown("<h1 style='text-align: center;'>📝 Form Laporan IT</h1>", unsafe_allow_html=True)
+    c1, c2, c3 = st.columns([1, 2, 1])
+    with c2:
+        with st.form("form_entry", clear_on_submit=True):
+            user = st.text_input("Nama Lengkap")
+            cabang = st.selectbox("Lokasi Cabang", st.secrets["master"]["daftar_cabang"])
+            issue = st.text_area("Deskripsi Kendala")
+            prio = st.select_slider("Urgensi", ["Low", "Medium", "High"])
+            if st.form_submit_button("KIRIM LAPORAN 🚀", use_container_width=True):
+                if user and issue:
+                    db = get_connection()
+                    cur = db.cursor()
+                    cur.execute("INSERT INTO tickets (nama_user, cabang, masalah, prioritas, status) VALUES (%s,%s,%s,%s,'Open')", (user, cabang, issue, prio))
+                    db.close()
+                    st.success("Tiket Anda telah masuk ke sistem antrean IT.")
+                    st.balloons()
