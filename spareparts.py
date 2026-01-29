@@ -2,23 +2,22 @@ import streamlit as st
 import pandas as pd
 
 def show_sparepart_menu(get_connection, get_wib_now, add_log):
-    # Ambil nama DB dari secrets
+    # Ambil nama DB dari secrets agar tidak hardcoded
     db_name = st.secrets["tidb"]["database"]
     
     st.markdown("## ⚙️ Sparepart Inventory")
     
-    # UI Tabs
     tab_view, tab_input = st.tabs(["📦 Stock Monitoring", "➕ Input Barang"])
     
     with tab_view:
         st.markdown("<div class='action-header'>Data Inventaris Sparepart</div>", unsafe_allow_html=True)
         try:
             db = get_connection()
-            cur = db.cursor()
-            # JURUS PAMUNGKAS: Paksa USE Database sebelum query apa pun
-            cur.execute(f"USE {db_name}")
+            # 1. PAKSA PILIH DATABASE DI LEVEL SESSION
+            db.select_db(db_name) 
             
-            query = "SELECT id, nama_part, kode_part, kategori, jumlah, keterangan, waktu FROM spareparts ORDER BY id DESC"
+            # 2. GUNAKAN ALAMAT LENGKAP (db_name.tabel) UNTUK KEAMANAN GANDA
+            query = f"SELECT id, nama_part, kode_part, kategori, jumlah, keterangan, waktu FROM {db_name}.spareparts ORDER BY id DESC"
             df = pd.read_sql(query, db)
             db.close()
             
@@ -27,21 +26,9 @@ def show_sparepart_menu(get_connection, get_wib_now, add_log):
             else:
                 st.info("Belum ada data sparepart.")
         except Exception as e:
-            # Jika tabel belum ada, kita kasih pesan yang jelas
             if "1146" in str(e):
                 st.warning(f"Tabel 'spareparts' belum ada di database '{db_name}'.")
-                st.code(f"""
--- Jalankan ini di Konsol TiDB lo:
-CREATE TABLE {db_name}.spareparts (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    nama_part VARCHAR(255),
-    kode_part VARCHAR(100),
-    kategori VARCHAR(50),
-    jumlah INT,
-    keterangan TEXT,
-    waktu DATETIME
-);
-                """)
+                st.info("Silakan buat tabelnya dulu di TiDB Cloud Console.")
             else:
                 st.error(f"Gagal memuat data: {e}")
 
@@ -62,12 +49,14 @@ CREATE TABLE {db_name}.spareparts (
                 if p_name and p_code:
                     try:
                         db = get_connection()
+                        # 3. PAKSA PILIH DATABASE SEBELUM OPERASI WRITE
+                        db.select_db(db_name)
                         cur = db.cursor()
-                        # Paksa USE Database lagi sebelum INSERT
-                        cur.execute(f"USE {db_name}")
                         
                         waktu_wib = get_wib_now().strftime('%Y-%m-%d %H:%M:%S')
-                        sql = "INSERT INTO spareparts (nama_part, kode_part, kategori, jumlah, keterangan, waktu) VALUES (%s, %s, %s, %s, %s, %s)"
+                        # 4. GUNAKAN ALAMAT LENGKAP PADA QUERY INSERT
+                        sql = f"INSERT INTO {db_name}.spareparts (nama_part, kode_part, kategori, jumlah, keterangan, waktu) VALUES (%s, %s, %s, %s, %s, %s)"
+                        
                         cur.execute(sql, (p_name, p_code, p_cat, p_qty, p_desc, waktu_wib))
                         db.close()
                         
