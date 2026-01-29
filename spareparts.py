@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 
 def show_sparepart_menu(get_connection, get_wib_now, add_log):
-    # Ambil nama DB dari secrets agar tidak hardcoded
+    # Ambil nama DB dari secrets
     db_name = st.secrets["tidb"]["database"]
     
     st.markdown("## ⚙️ Sparepart Inventory")
@@ -13,11 +13,11 @@ def show_sparepart_menu(get_connection, get_wib_now, add_log):
         st.markdown("<div class='action-header'>Data Inventaris Sparepart</div>", unsafe_allow_html=True)
         try:
             db = get_connection()
-            # 1. PAKSA PILIH DATABASE DI LEVEL SESSION
-            db.select_db(db_name) 
+            # PAKSA DATABASE LAGI
+            db.select_db(db_name)
             
-            # 2. GUNAKAN ALAMAT LENGKAP (db_name.tabel) UNTUK KEAMANAN GANDA
-            query = f"SELECT id, nama_part, kode_part, kategori, jumlah, keterangan, waktu FROM {db_name}.spareparts ORDER BY id DESC"
+            # REVISI: Pakai nama_db.spareparts agar tidak tertukar
+            query = f"SELECT * FROM {db_name}.spareparts ORDER BY id DESC"
             df = pd.read_sql(query, db)
             db.close()
             
@@ -26,11 +26,7 @@ def show_sparepart_menu(get_connection, get_wib_now, add_log):
             else:
                 st.info("Belum ada data sparepart.")
         except Exception as e:
-            if "1146" in str(e):
-                st.warning(f"Tabel 'spareparts' belum ada di database '{db_name}'.")
-                st.info("Silakan buat tabelnya dulu di TiDB Cloud Console.")
-            else:
-                st.error(f"Gagal memuat data: {e}")
+            st.error(f"Gagal memuat data: {e}")
 
     with tab_input:
         st.markdown("<div class='action-header'>Tambah Sparepart Baru</div>", unsafe_allow_html=True)
@@ -49,19 +45,20 @@ def show_sparepart_menu(get_connection, get_wib_now, add_log):
                 if p_name and p_code:
                     try:
                         db = get_connection()
-                        # 3. PAKSA PILIH DATABASE SEBELUM OPERASI WRITE
                         db.select_db(db_name)
                         cur = db.cursor()
-                        
                         waktu_wib = get_wib_now().strftime('%Y-%m-%d %H:%M:%S')
-                        # 4. GUNAKAN ALAMAT LENGKAP PADA QUERY INSERT
-                        sql = f"INSERT INTO {db_name}.spareparts (nama_part, kode_part, kategori, jumlah, keterangan, waktu) VALUES (%s, %s, %s, %s, %s, %s)"
+                        
+                        # REVISI: Insert langsung ke database.tabel
+                        sql = f"""INSERT INTO {db_name}.spareparts 
+                                (nama_part, kode_part, kategori, jumlah, keterangan, waktu) 
+                                VALUES (%s, %s, %s, %s, %s, %s)"""
                         
                         cur.execute(sql, (p_name, p_code, p_cat, p_qty, p_desc, waktu_wib))
                         db.close()
                         
-                        add_log("SPAREPART", f"Menambah {p_name} ({p_qty} pcs)")
-                        st.toast(f"✅ {p_name} Berhasil disimpan!", icon='⚙️')
+                        add_log("SPAREPART", f"Menambah {p_name}")
+                        st.toast(f"✅ Berhasil disimpan!", icon='⚙️')
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error Database: {e}")
