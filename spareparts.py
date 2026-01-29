@@ -12,36 +12,40 @@ def show_sparepart_menu(get_connection, get_wib_now, add_log):
         "📦 Stock Monitoring", "🔄 Mutasi Barang", "✅ Approval Center", "🛠️ Kelola Data"
     ])
     
-    # --- TAB 1: VIEW DATA ---
+    # --- TAB 1: VIEW DATA (ID SELALU URUT DARI 1) ---
     with tab_view:
         st.markdown("<div class='action-header'>Log Inventaris Aktif</div>", unsafe_allow_html=True)
         try:
             db = get_connection(); db.select_db(db_name)
+            # Ambil data, urutkan berdasarkan waktu/id terbaru di atas
             df = pd.read_sql(f"SELECT * FROM {db_name}.spareparts ORDER BY id DESC", db); db.close()
             
             if not df.empty:
-                # LOGIKA ID VIRTUAL (Agar tampilan 1, 2, 3... tetap urut)
+                # REVISI: Paksa Reset Index agar ID yang tampil selalu mulai dari 1
                 df = df.reset_index(drop=True)
+                # Tambahkan kolom 'No' di posisi paling kiri
                 df.insert(0, 'No', range(1, len(df) + 1))
                 
-                # Deteksi Status dari Tagging [PENDING]
+                # Deteksi Status
                 df['Status'] = df['keterangan'].apply(lambda x: "🟡 Pending" if "[PENDING]" in str(x) else "🟢 Approved")
                 
-                # Mempercantik Tampilan (ID Asli disembunyikan tapi tetap disimpan untuk hapus)
+                # HAPUS KOLOM 'id' ASLI DATABASE AGAR TIDAK MEMBINGUNGKAN USER
                 df_display = df.drop(columns=['id'])
+                
+                # Nama Kolom yang rapi
                 df_display.columns = ['No', 'Barang', 'S/N', 'Kategori', 'Stok', 'Info & User', 'Waktu Masuk', 'Status']
                 
-                # Filter Sederhana
                 f_status = st.multiselect("Filter Status:", ["🟡 Pending", "🟢 Approved"], default=["🟡 Pending", "🟢 Approved"])
                 df_filtered = df_display[df_display['Status'].isin(f_status)]
                 
                 st.dataframe(df_filtered, use_container_width=True, hide_index=True)
+                st.caption(f"Menampilkan {len(df_filtered)} item.")
             else:
                 st.info("Gudang kosong.")
         except Exception as e:
             st.error(f"Error View: {e}")
 
-    # --- TAB 2: MUTASI (MASUK/KELUAR) ---
+    # --- TAB 2: MUTASI ---
     with tab_transaksi:
         st.markdown("<div class='action-header'>Input Mutasi Barang</div>", unsafe_allow_html=True)
         with st.form("form_mutasi", clear_on_submit=True):
@@ -59,42 +63,40 @@ def show_sparepart_menu(get_connection, get_wib_now, add_log):
             if st.form_submit_button("AJUKAN SEKARANG 🚀", use_container_width=True):
                 if m_name and m_sn:
                     try:
-                        # Samakan format tagging dan waktu
                         prefix = "[PENDING] [MASUK]" if m_type == "Barang Masuk" else "[PENDING] [KELUAR]"
                         ket_final = f"{prefix} | Oleh: {user_aktif} | Note: {m_note}"
-                        
                         db = get_connection(); db.select_db(db_name); cur = db.cursor()
-                        # Gunakan waktu_sekarang agar sinkron
                         sql = f"INSERT INTO {db_name}.spareparts (nama_part, kode_part, kategori, jumlah, keterangan, waktu) VALUES (%s,%s,%s,%s,%s,%s)"
                         cur.execute(sql, (m_name, m_sn, m_cat, m_qty, ket_final, waktu_sekarang))
                         db.close()
-                        
                         add_log("MUTASI", f"Ajukan {m_type}: {m_name}")
-                        st.toast(f"✅ Pengajuan {m_name} berhasil!"); st.rerun()
-                    except Exception as e: st.error(f"Gagal Mutasi: {e}")
+                        st.toast(f"✅ Berhasil!"); st.rerun()
+                    except Exception as e: st.error(f"Gagal: {e}")
 
-    # --- TAB 3: APPROVAL CENTER ---
+    # --- TAB 3: APPROVAL CENTER (PAKAI NO URUT JUGA) ---
     with tab_approve:
         st.markdown("<div class='action-header'>Menunggu Persetujuan Admin</div>", unsafe_allow_html=True)
         try:
             db = get_connection(); db.select_db(db_name)
-            # Ambil data yang masih PENDING saja
             df_app = pd.read_sql(f"SELECT * FROM {db_name}.spareparts WHERE keterangan LIKE '%[PENDING]%'", db)
             
             if not df_app.empty:
-                for _, row in df_app.iterrows():
-                    with st.expander(f"📌 {row['nama_part']} ({row['jumlah']} unit) - {row['waktu']}"):
-                        st.info(f"Detail: {row['keterangan']}")
-                        if st.button(f"SETUJUI (ID {row['id']})", key=f"btn_app_{row['id']}", use_container_width=True):
-                            new_ket = row['keterangan'].replace("[PENDING]", "[APPROVED]")
+                # Beri nomor urut visual di expander
+                for i, row in enumerate(df_app.iterrows(), 1):
+                    item = row[1]
+                    with st.expander(f"Antrean #{i} | 📌 {item['nama_part']} ({item['jumlah']} unit)"):
+                        st.info(f"Detail: {item['keterangan']}")
+                        # Tombol tetap pakai item['id'] di backend agar akurat, tapi user lihat Antrean #1, #2...
+                        if st.button(f"SETUJUI ANTREAN #{i}", key=f"btn_app_{item['id']}", use_container_width=True):
+                            new_ket = item['keterangan'].replace("[PENDING]", "[APPROVED]")
                             cur = db.cursor()
-                            cur.execute(f"UPDATE {db_name}.spareparts SET keterangan = %s WHERE id = %s", (new_ket, row['id']))
-                            db.close(); add_log("APPROVE", f"Approved ID {row['id']}"); st.rerun()
+                            cur.execute(f"UPDATE {db_name}.spareparts SET keterangan = %s WHERE id = %s", (new_ket, item['id']))
+                            db.close(); add_log("APPROVE", f"Approved {item['nama_part']}"); st.rerun()
             else:
-                st.success("Belum ada antrean approval. Semua bersih! ✅")
+                st.success("Semua bersih! ✅")
         except Exception as e: st.error(e)
 
-    # --- TAB 4: KELOLA DATA (HAPUS) ---
+    # --- TAB 4: KELOLA DATA (HAPUS BERDASARKAN NAMA & WAKTU) ---
     with tab_manage:
         st.markdown("<div class='action-header'>Hapus Data (Admin Only)</div>", unsafe_allow_html=True)
         try:
@@ -102,19 +104,21 @@ def show_sparepart_menu(get_connection, get_wib_now, add_log):
             df_manage = pd.read_sql(f"SELECT id, nama_part, kode_part, waktu FROM {db_name}.spareparts ORDER BY id DESC", db)
             
             if not df_manage.empty:
-                # Format pilihan: ID Database - Nama - Waktu Masuk
-                options = {row['id']: f"ID {row['id']} | {row['nama_part']} | ({row['waktu']})" for _, row in df_manage.iterrows()}
-                selected_id = st.selectbox("Pilih data yang ingin dihapus permanen:", 
+                # User memilih berdasarkan Nama dan Waktu (Tanpa melihat ID Database yang berantakan)
+                # Kita buat label pilihan yang bersih
+                options = {row['id']: f"Barang: {row['nama_part']} | SN: {row['kode_part']} | Masuk: {row['waktu']}" for _, row in df_manage.iterrows()}
+                
+                selected_db_id = st.selectbox("Pilih data yang ingin dibuang:", 
                                          options.keys(), 
                                          format_func=lambda x: options[x])
                 
-                st.error("⚠️ Data yang dihapus tidak bisa dikembalikan!")
-                if st.button("YA, HAPUS PERMANEN 🗑️", use_container_width=True):
+                st.warning("⚠️ Data akan dihapus selamanya dari sistem.")
+                if st.button("YA, HAPUS SEKARANG 🗑️", use_container_width=True):
                     cur = db.cursor()
-                    cur.execute(f"DELETE FROM {db_name}.spareparts WHERE id = %s", (selected_id,))
+                    cur.execute(f"DELETE FROM {db_name}.spareparts WHERE id = %s", (selected_db_id,))
                     db.close()
-                    add_log("DELETE_SP", f"Hapus Sparepart ID #{selected_id}")
-                    st.toast("Data terhapus!"); st.rerun()
+                    add_log("DELETE_SP", f"Hapus Item: {options[selected_db_id]}")
+                    st.toast("Terhapus!"); st.rerun()
             else:
-                st.info("Tidak ada data untuk dihapus.")
+                st.info("Tidak ada data.")
         except Exception as e: st.error(e)
