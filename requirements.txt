@@ -1,5 +1,7 @@
 streamlit
 pymysql
+mysql-connector-python
 pandas
-sqlalchemy
-streamlit-cookies-controller
+certifi
+pytz
+plotly
