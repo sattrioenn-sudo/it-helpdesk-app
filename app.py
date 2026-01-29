@@ -6,11 +6,7 @@ from datetime import datetime, timedelta
 import io
 
 # --- 1. KONFIGURASI & THEME ---
-st.set_page_config(
-    page_title="IT Kemasan", 
-    page_icon="🎫", 
-    layout="wide"
-)
+st.set_page_config(page_title="IT Kemasan", page_icon="🎫", layout="wide")
 
 # --- 2. LOGIKA PERSISTENT SESSION ---
 @st.cache_resource
@@ -18,15 +14,15 @@ def get_auth_state():
     return {"logged_in": False, "user_name": ""}
 
 auth = get_auth_state()
-
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = auth["logged_in"]
 if 'user_name' not in st.session_state:
     st.session_state.user_name = auth["user_name"]
 
-# --- 3. FUNGSI WAKTU WIB ---
+# --- 3. FUNGSI WAKTU WIB (FIXED) ---
 def get_wib_now():
-    return datetime.now() + timedelta(hours=7)
+    # Mengambil waktu UTC lalu ditambah 7 jam untuk ke WIB
+    return datetime.utcnow() + timedelta(hours=7)
 
 # --- 4. DATABASE CONNECTION ---
 def get_connection():
@@ -40,7 +36,7 @@ def get_connection():
         ssl={'ca': certifi.where()}
     )
 
-# --- 5. CSS CUSTOM (PREMIUM UI - TETAP SAMA) ---
+# --- 5. CSS CUSTOM (PREMIUM UI) ---
 st.markdown("""
     <style>
     .stApp { background: radial-gradient(circle at top right, #0e1117, #1c2533); }
@@ -129,6 +125,7 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
     df = pd.read_sql("SELECT * FROM tickets ORDER BY id DESC", db)
     db.close()
 
+    # Perbaikan Waktu Selesai (WIB)
     if 'waktu_selesai' in df.columns:
         df['waktu_selesai'] = df.apply(
             lambda r: get_wib_now().strftime('%Y-%m-%d %H:%M:%S') if (r['status'] == 'Solved' and (r['waktu_selesai'] is None or str(r['waktu_selesai']) == 'None')) else r['waktu_selesai'],
@@ -162,10 +159,12 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
                 if st.form_submit_button("KIRIM LAPORAN 🚀", use_container_width=True):
                     if u_in and i_in:
                         db = get_connection(); cur = db.cursor()
-                        cur.execute("INSERT INTO tickets (nama_user, cabang, masalah, prioritas, status) VALUES (%s,%s,%s,%s,'Open')", (u_in, c_in, i_in, p_in))
+                        # INSERT WAKTU SEKARANG (WIB)
+                        now_wib = get_wib_now().strftime('%Y-%m-%d %H:%M:%S')
+                        cur.execute("INSERT INTO tickets (nama_user, cabang, masalah, prioritas, status, waktu) VALUES (%s,%s,%s,%s,'Open',%s)", 
+                                    (u_in, c_in, i_in, p_in, now_wib))
                         db.close()
                         add_log("INPUT", f"Tiket Baru oleh {u_in}")
-                        # Notif Minimalis
                         st.toast(f"✅ Tiket {u_in} berhasil dikirim!", icon='🚀')
                         st.rerun()
 
@@ -224,7 +223,8 @@ elif menu == "Quick Input Mode":
             if st.form_submit_button("KIRIM LAPORAN 🚀", use_container_width=True):
                 if user and issue:
                     db = get_connection(); cur = db.cursor()
-                    cur.execute("INSERT INTO tickets (nama_user, cabang, masalah, prioritas, status) VALUES (%s,%s,%s,%s,'Open')", (user, cabang, issue, prio))
+                    now_wib = get_wib_now().strftime('%Y-%m-%d %H:%M:%S')
+                    cur.execute("INSERT INTO tickets (nama_user, cabang, masalah, prioritas, status, waktu) VALUES (%s,%s,%s,%s,'Open',%s)", 
+                                (user, cabang, issue, prio, now_wib))
                     db.close()
-                    # Notif Minimalis untuk Guest
                     st.success("✅ Laporan Anda telah kami terima.")
