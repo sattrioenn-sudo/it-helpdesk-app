@@ -106,7 +106,6 @@ with st.sidebar:
                 st.error("Credential Salah!")
     else:
         st.markdown(f"<p style='text-align: center;'>Operator: <b>{st.session_state.user_name.upper()}</b></p>", unsafe_allow_html=True)
-        # PENAMBAHAN MENU SPAREPART DI SINI
         menu = st.selectbox("📂 MAIN MENU", ["Dashboard Monitor", "📦 Inventory Spareparts", "Export & Reporting", "Security Log"])
         if st.button("🔒 LOGOUT", use_container_width=True):
             st.session_state.logged_in = False
@@ -162,19 +161,30 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
                         db.close(); add_log("INPUT", f"Tiket: {u_in}"); st.rerun()
 
     with col_ctrl:
-        with st.expander("🔄 Update / 🗑️ Hapus"):
+        with st.expander("🔄 Update / 🗑️ Hapus", expanded=True):
             if not df.empty:
                 id_up = st.selectbox("Pilih ID Tiket", df['id'].tolist())
                 st_up = st.selectbox("Set Status", ["Open", "In Progress", "Solved", "Closed"])
-                if st.button("SIMPAN PERUBAHAN", use_container_width=True):
-                    db = get_connection(); cur = db.cursor()
-                    if st_up == "Solved":
-                        cur.execute("UPDATE tickets SET status=%s, waktu_selesai=%s WHERE id=%s", (st_up, get_wib_now().strftime('%Y-%m-%d %H:%M:%S'), id_up))
-                    else:
-                        cur.execute("UPDATE tickets SET status=%s WHERE id=%s", (st_up, id_up))
-                    db.close(); st.rerun()
+                
+                # Container untuk tombol agar rapi sejajar
+                c_btn1, c_btn2 = st.columns(2)
+                
+                with c_btn1:
+                    if st.button("💾 SIMPAN", use_container_width=True, type="primary"):
+                        db = get_connection(); cur = db.cursor()
+                        if st_up == "Solved":
+                            cur.execute("UPDATE tickets SET status=%s, waktu_selesai=%s WHERE id=%s", (st_up, get_wib_now().strftime('%Y-%m-%d %H:%M:%S'), id_up))
+                        else:
+                            cur.execute("UPDATE tickets SET status=%s WHERE id=%s", (st_up, id_up))
+                        db.close(); add_log("UPDATE", f"ID #{id_up} -> {st_up}"); st.rerun()
+                
+                with c_btn2:
+                    if st.button("🗑️ HAPUS", use_container_width=True):
+                        db = get_connection(); cur = db.cursor()
+                        cur.execute("DELETE FROM tickets WHERE id=%s", (id_up,))
+                        db.close(); add_log("DELETE", f"Hapus Tiket ID #{id_up}"); st.rerun()
 
-# --- HALAMAN 2: SPAREPART INVENTORY (PANGGIL FILE spareparts.py) ---
+# --- HALAMAN LAINNYA TETAP SAMA ---
 elif menu == "📦 Inventory Spareparts" and st.session_state.logged_in:
     try:
         from spareparts import show_sparepart_menu
@@ -182,7 +192,6 @@ elif menu == "📦 Inventory Spareparts" and st.session_state.logged_in:
     except Exception as e:
         st.error(f"Error loading spareparts.py: {e}")
 
-# --- HALAMAN 3: EXPORT ---
 elif menu == "Export & Reporting" and st.session_state.logged_in:
     st.markdown("## 📂 Financial & Operations Report")
     db = get_connection()
@@ -190,13 +199,11 @@ elif menu == "Export & Reporting" and st.session_state.logged_in:
     st.dataframe(df_ex, use_container_width=True)
     st.download_button("📥 DOWNLOAD CSV", df_ex.to_csv(index=False).encode('utf-8'), "Report.csv", "text/csv")
 
-# --- HALAMAN 4: SECURITY ---
 elif menu == "Security Log" and st.session_state.logged_in:
     st.markdown("## 🛡️ Security Audit Log")
     if st.session_state.audit_logs:
         st.dataframe(pd.DataFrame(st.session_state.audit_logs), use_container_width=True, hide_index=True)
 
-# --- HALAMAN GUEST ---
 elif menu == "Quick Input Mode":
     st.markdown("<h1 style='text-align: center;'>📝 Form Laporan IT</h1>", unsafe_allow_html=True)
     with st.form("form_guest", clear_on_submit=True):
