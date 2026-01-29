@@ -35,7 +35,7 @@ def get_connection():
         ssl={'ca': certifi.where()}
     )
 
-# --- 5. CSS CUSTOM (PREMIUM UI - TETAP UTUH) ---
+# --- 5. CSS CUSTOM ---
 st.markdown("""
     <style>
     .stApp { background: radial-gradient(circle at top right, #0e1117, #1c2533); }
@@ -80,7 +80,7 @@ def add_log(action, details):
         "Aksi": action, "Detail": details
     })
 
-# --- 7. SIDEBAR MANAGEMENT (REVISI MENU) ---
+# --- 7. SIDEBAR MANAGEMENT ---
 with st.sidebar:
     st.markdown("<h1 style='text-align: center; color: white;'>🎫 IT-Kemasan Group</h1>", unsafe_allow_html=True)
     wib = get_wib_now()
@@ -124,13 +124,33 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
     df = pd.read_sql("SELECT * FROM tickets ORDER BY id DESC", db)
     db.close()
 
+    # --- LOGIKA KOLOM KETERANGAN VIRTUAL ---
+    def auto_keterangan(masalah):
+        m = str(masalah).lower()
+        if 'ssd' in m: return "🔄 Penggantian SSD"
+        if 'hardware' in m: return "🛠️ Perbaikan Hardware"
+        if 'ram' in m: return "⚡ Upgrade RAM"
+        if 'monitor' in m: return "🖥️ Masalah Display"
+        return "ℹ️ General Maintenance"
+
+    # Menambah kolom keterangan secara virtual (di memori pandas)
+    df['Keterangan'] = df['masalah'].apply(auto_keterangan)
+
     if 'waktu_selesai' in df.columns:
         df['waktu_selesai'] = df.apply(
             lambda r: get_wib_now().strftime('%Y-%m-%d %H:%M:%S') if (r['status'] == 'Solved' and (r['waktu_selesai'] is None or str(r['waktu_selesai']) == 'None')) else r['waktu_selesai'],
             axis=1
         )
 
+    # Rename kolom & mengatur urutan kolom agar Keterangan di kanan Problem
     df_display = df.rename(columns={'nama_user': 'Nama Teknisi', 'masalah': 'Problem', 'waktu': 'Waktu Laporan'})
+    
+    # Reorder kolom secara manual agar Keterangan tepat setelah Problem
+    cols = ['id', 'Nama Teknisi', 'cabang', 'Problem', 'Keterangan', 'prioritas', 'status', 'Waktu Laporan', 'waktu_selesai']
+    # Pastikan kolom ada sebelum reorder (menghindari error jika ada kolom tak terduga)
+    cols = [c for c in cols if c in df_display.columns]
+    df_display = df_display[cols]
+
     q = st.text_input("🔍 Search Console", placeholder="Cari...")
     if q: 
         df_display = df_display[df_display.apply(lambda r: r.astype(str).str.contains(q, case=False).any(), axis=1)]
@@ -166,9 +186,7 @@ if menu == "Dashboard Monitor" and st.session_state.logged_in:
                 id_up = st.selectbox("Pilih ID Tiket", df['id'].tolist())
                 st_up = st.selectbox("Set Status", ["Open", "In Progress", "Solved", "Closed"])
                 
-                # Container untuk tombol agar rapi sejajar
                 c_btn1, c_btn2 = st.columns(2)
-                
                 with c_btn1:
                     if st.button("💾 SIMPAN", use_container_width=True, type="primary"):
                         db = get_connection(); cur = db.cursor()
