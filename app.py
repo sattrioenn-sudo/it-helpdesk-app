@@ -43,52 +43,58 @@ def has_access(perm):
     user_perms = st.session_state.user_permissions.get(user, ["Input"])
     return perm in user_perms
 
-# --- 4. CSS CUSTOM (RARE UI DESIGN) ---
+# --- 4. CSS CUSTOM (RARE UI ENHANCEMENT) ---
 st.markdown("""
     <style>
+    /* Background Deep Ocean */
     .stApp { background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%); }
+    
+    /* Glassmorphism Effect */
     div[data-testid="metric-container"], .stDataFrame, .stExpander, .stForm {
-        background: rgba(255, 255, 255, 0.01) !important;
+        background: rgba(255, 255, 255, 0.02) !important;
         backdrop-filter: blur(15px);
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border: 1px solid rgba(59, 130, 246, 0.2) !important;
         border-radius: 20px !important;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
     }
+
+    /* Rare Clock Styling */
     .clock-inner {
-        background: #0f172a; border-radius: 18px; padding: 15px; text-align: center;
-        border: 1px solid rgba(59, 130, 246, 0.3);
+        background: rgba(15, 23, 42, 0.8); border-radius: 18px; padding: 15px; text-align: center;
+        border: 1px solid #3b82f6; box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
     }
     .digital-clock {
         font-family: 'JetBrains Mono', monospace; color: #60a5fa;
-        font-size: 32px; font-weight: 800; text-shadow: 0 0 15px rgba(59, 130, 246, 0.6);
+        font-size: 32px; font-weight: 800; text-shadow: 0 0 10px rgba(96, 165, 250, 0.8);
     }
+
+    /* Cyber Header Accent */
     .action-header {
         background: linear-gradient(90deg, rgba(59, 130, 246, 0.2) 0%, transparent 100%);
         padding: 15px; border-radius: 12px; border-left: 6px solid #3b82f6;
         color: #f8fafc; text-transform: uppercase; letter-spacing: 2px; margin: 25px 0;
     }
+
+    /* Premium Buttons */
     .stButton>button {
-        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+        background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%) !important;
         border: none !important; border-radius: 10px !important; color: white !important;
         font-weight: bold !important; transition: 0.3s all !important;
-        box-shadow: 0 0 15px rgba(37, 99, 235, 0.3) !important;
+        box-shadow: 0 4px 15px rgba(29, 78, 216, 0.4) !important;
     }
     .stButton>button:hover {
-        box-shadow: 0 0 25px rgba(37, 99, 235, 0.6) !important; transform: translateY(-2px);
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.6) !important; transform: translateY(-2px);
     }
-    input, textarea, [data-baseweb="select"] {
-        background-color: rgba(255, 255, 255, 0.05) !important;
-        border-radius: 10px !important; border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    }
-    /* Rare Sidebar Image Style */
+
+    /* Sidebar Image Rare Container */
     .sidebar-img-container {
-        border-radius: 15px; overflow: hidden; border: 1px solid rgba(59, 130, 246, 0.4);
-        margin-top: 20px; box-shadow: 0 0 20px rgba(59, 130, 246, 0.15);
-        position: relative;
+        border-radius: 15px; overflow: hidden; border: 1px solid rgba(59, 130, 246, 0.3);
+        margin-top: 20px; position: relative; background: #000;
     }
     .sidebar-img-tag {
-        padding: 5px; background: rgba(59, 130, 246, 0.1); 
-        text-align: center; font-size: 9px; color: #60a5fa; font-weight: bold;
+        padding: 6px; background: rgba(59, 130, 246, 0.15); 
+        text-align: center; font-size: 10px; color: #60a5fa; font-weight: bold;
+        letter-spacing: 1px; border-top: 1px solid rgba(59, 130, 246, 0.3);
     }
     </style>
     """, unsafe_allow_html=True)
@@ -133,12 +139,12 @@ with st.sidebar:
         if has_access("Security"): menu_list.append("Security Log")
         menu = st.selectbox("📂 NAVIGATION", menu_list)
 
-        # --- TAMPILAN GAMBAR IT RARE ---
+        # --- TAMPILAN GAMBAR UI-MATCHING RARE ---
         st.markdown(f'''
             <div class="sidebar-img-container">
-                <img src="https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=500&auto=format&fit=crop" 
-                     style="width: 100%; display: block; filter: contrast(1.1) brightness(0.8);">
-                <div class="sidebar-img-tag">CORE INFRASTRUCTURE ACTIVE</div>
+                <img src="https://images.unsplash.com/photo-1551288049-bbbda536339a?q=80&w=500&auto=format&fit=crop" 
+                     style="width: 100%; display: block; filter: hue-rotate(180deg) brightness(0.7) contrast(1.2); opacity: 0.85;">
+                <div class="sidebar-img-tag">📊 DATA ANALYTICS HUB</div>
             </div>
         ''', unsafe_allow_html=True)
         
