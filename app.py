@@ -19,15 +19,26 @@ if 'logged_in' not in st.session_state:
 if 'user_name' not in st.session_state:
     st.session_state.user_name = auth["user_name"]
 
-# Inisialisasi memori untuk Keterangan Custom (Agar tidak merubah DB)
+# Memori Virtual (Keterangan & Hak Akses)
 if 'custom_keterangan' not in st.session_state:
     st.session_state.custom_keterangan = {}
+if 'user_permissions' not in st.session_state:
+    # Default: Admin (u) punya semua akses, user lain terbatas
+    st.session_state.user_permissions = {
+        "admin": ["Input", "Edit", "Hapus", "Export", "Security"],
+        "user": ["Input"]
+    }
 
-# --- 3. FUNGSI WAKTU WIB ---
+# --- 3. FUNGSI CEK AKSES ---
+def check_permission(perm):
+    user = st.session_state.user_name
+    perms = st.session_state.user_permissions.get(user, ["Input"]) # Default hanya input
+    return perm in perms
+
+# --- 4. FUNGSI WAKTU & DATABASE ---
 def get_wib_now():
     return datetime.utcnow() + timedelta(hours=7)
 
-# --- 4. DATABASE CONNECTION ---
 def get_connection():
     return pymysql.connect(
         host=st.secrets["tidb"]["host"],
@@ -39,7 +50,7 @@ def get_connection():
         ssl={'ca': certifi.where()}
     )
 
-# --- 5. CSS CUSTOM (TETAP UTUH) ---
+# --- 5. CSS (TETAP UTUH) ---
 st.markdown("""
     <style>
     .stApp { background: radial-gradient(circle at top right, #0e1117, #1c2533); }
@@ -47,26 +58,10 @@ st.markdown("""
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.1);
         backdrop-filter: blur(10px);
-        padding: 20px; border-radius: 15px;
-        color: white !important;
+        padding: 20px; border-radius: 15px; color: white !important;
     }
-    section[data-testid="stSidebar"] {
-        background-color: #0e1117 !important;
-        border-right: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    .clock-box {
-        background: linear-gradient(135deg, #1d4ed8 0%, #10b981 100%);
-        padding: 15px; border-radius: 12px; text-align: center;
-        margin-bottom: 25px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-    }
-    .digital-clock {
-        font-family: 'JetBrains Mono', monospace;
-        color: white; font-size: 28px; font-weight: 800;
-    }
-    .stDataFrame { border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 15px; }
     .action-header {
-        background: rgba(255, 255, 255, 0.05);
-        padding: 10px 20px; border-radius: 10px;
+        background: rgba(255, 255, 255, 0.05); padding: 10px 20px; border-radius: 10px;
         border-left: 5px solid #1d4ed8; margin: 20px 0;
     }
     </style>
@@ -77,115 +72,122 @@ if 'audit_logs' not in st.session_state:
     st.session_state.audit_logs = []
 
 def add_log(action, details):
-    waktu = get_wib_now().strftime('%H:%M:%S')
     st.session_state.audit_logs.insert(0, {
-        "Waktu": waktu,
-        "User": st.session_state.user_name.upper() if st.session_state.user_name else "GUEST",
+        "Waktu": get_wib_now().strftime('%H:%M:%S'),
+        "User": st.session_state.user_name.upper(),
         "Aksi": action, "Detail": details
     })
 
-# --- 7. SIDEBAR MANAGEMENT ---
+# --- 7. SIDEBAR ---
 with st.sidebar:
-    st.markdown("<h1 style='text-align: center; color: white;'>🎫 IT-Kemasan Group</h1>", unsafe_allow_html=True)
-    wib = get_wib_now()
-    st.markdown(f'<div class="clock-box"><div class="digital-clock">{wib.strftime("%H:%M:%S")}</div></div>', unsafe_allow_html=True)
-
-    if not st.session_state.logged_in:
+    st.markdown("<h1 style='text-align: center;'>🎫 IT-Kemasan</h1>", unsafe_allow_html=True)
+    if st.session_state.logged_in:
+        st.markdown(f"<p style='text-align: center;'>Operator: <b>{st.session_state.user_name.upper()}</b></p>", unsafe_allow_html=True)
+        # Filter menu berdasarkan akses Security
+        menu_list = ["Dashboard Monitor", "📦 Inventory Spareparts"]
+        if check_permission("Export"): menu_list.append("Export & Reporting")
+        if check_permission("Security"): menu_list.append("Security Settings")
+        
+        menu = st.selectbox("📂 MAIN MENU", menu_list)
+        if st.button("🔒 LOGOUT"):
+            st.session_state.logged_in = False
+            st.rerun()
+    else:
         u = st.text_input("Username")
         p = st.text_input("Password", type="password")
-        if st.button("🔓 SIGN IN", use_container_width=True, type="primary"):
+        if st.button("🔓 SIGN IN"):
             if u in st.secrets["auth"] and p == st.secrets["auth"][u]:
                 st.session_state.logged_in = True
                 st.session_state.user_name = u
                 st.rerun()
-    else:
-        st.markdown(f"<p style='text-align: center;'>Operator: <b>{st.session_state.user_name.upper()}</b></p>", unsafe_allow_html=True)
-        menu = st.selectbox("📂 MAIN MENU", ["Dashboard Monitor", "📦 Inventory Spareparts", "Export & Reporting", "Security Log"])
-        if st.button("🔒 LOGOUT", use_container_width=True):
-            st.session_state.logged_in = False
-            st.rerun()
 
-# --- 8. MENU LOGIC ---
+# --- 8. LOGIC ---
 if not st.session_state.logged_in:
     menu = "Quick Input Mode"
 
-if menu == "Dashboard Monitor" and st.session_state.logged_in:
-    st.markdown("## 📊 Monitoring Center")
+# --- DASHBOARD ---
+if menu == "Dashboard Monitor":
     db = get_connection()
-    df = pd.read_sql("SELECT * FROM tickets ORDER BY id DESC", db)
-    db.close()
-
-    # Gabungkan data Keterangan dari session_state ke DataFrame secara virtual
+    df = pd.read_sql("SELECT * FROM tickets ORDER BY id DESC", db); db.close()
+    
+    # Injeksi Keterangan Virtual
     df['Keterangan'] = df['id'].apply(lambda x: st.session_state.custom_keterangan.get(x, "-"))
-
-    df_display = df.rename(columns={'nama_user': 'Nama Teknisi', 'masalah': 'Problem', 'waktu': 'Waktu Laporan'})
     
-    # Atur urutan kolom agar Keterangan di kanan Problem
-    cols = list(df_display.columns)
-    if 'Problem' in cols and 'Keterangan' in cols:
-        p_idx = cols.index('Problem')
-        cols.insert(p_idx + 1, cols.pop(cols.index('Keterangan')))
-    df_display = df_display[cols]
+    df_disp = df.rename(columns={'nama_user': 'Nama Teknisi', 'masalah': 'Problem', 'waktu': 'Waktu Laporan'})
+    cols = ['id', 'Nama Teknisi', 'Problem', 'Keterangan', 'status', 'Waktu Laporan']
+    st.dataframe(df_disp[[c for c in cols if c in df_disp.columns]], use_container_width=True, hide_index=True)
 
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Total Tickets", len(df_display))
-    c2.metric("🔴 Open", len(df_display[df_display['status'] == 'Open']))
-    c3.metric("🟡 In Progress", len(df_display[df_display['status'] == 'In Progress']))
-    c4.metric("🟢 Solved", len(df_display[df_display['status'] == 'Solved']))
+    st.markdown("<div class='action-header'>⚡ Action Center</div>", unsafe_allow_html=True)
+    c_in, c_ed = st.columns(2)
 
-    st.dataframe(df_display, use_container_width=True, hide_index=True)
+    with c_in:
+        with st.expander("🆕 Input Tiket"):
+            if check_permission("Input"):
+                with st.form("f_in", clear_on_submit=True):
+                    u_in = st.text_input("Nama"); prob = st.text_area("Masalah")
+                    if st.form_submit_button("KIRIM"):
+                        db = get_connection(); cur = db.cursor()
+                        cur.execute("INSERT INTO tickets (nama_user, masalah, status, waktu) VALUES (%s,%s,'Open',%s)", (u_in, prob, get_wib_now().strftime('%Y-%m-%d %H:%M:%S')))
+                        db.close(); add_log("INPUT", u_in); st.rerun()
+            else: st.warning("Akses Input Dibatasi")
 
-    st.markdown("<div class='action-header'>⚡ Unified Action & Input Center</div>", unsafe_allow_html=True)
-    col_input, col_ctrl = st.columns([1.2, 1])
+    with c_ed:
+        with st.expander("🔄 Edit / Hapus"):
+            if check_permission("Edit"):
+                id_up = st.selectbox("ID", df['id'].tolist())
+                new_ket = st.text_input("Edit Keterangan SSD/HW", value=st.session_state.custom_keterangan.get(id_up, ""))
+                st_up = st.selectbox("Status", ["Open", "In Progress", "Solved"])
+                
+                b1, b2 = st.columns(2)
+                if b1.button("💾 UPDATE"):
+                    st.session_state.custom_keterangan[id_up] = new_ket
+                    db = get_connection(); cur = db.cursor()
+                    cur.execute("UPDATE tickets SET status=%s WHERE id=%s", (st_up, id_up))
+                    db.close(); add_log("UPDATE", f"ID {id_up}"); st.rerun()
+                
+                if b2.button("🗑️ HAPUS"):
+                    if check_permission("Hapus"):
+                        db = get_connection(); cur = db.cursor()
+                        cur.execute("DELETE FROM tickets WHERE id=%s", (id_up))
+                        db.close(); add_log("DELETE", f"ID {id_up}"); st.rerun()
+                    else: st.error("Akses Hapus Dibatasi")
+            else: st.warning("Akses Edit Dibatasi")
+
+# --- EXPORT (FIXED) ---
+elif menu == "Export & Reporting":
+    st.markdown("## 📂 Export Data")
+    db = get_connection()
+    df_ex = pd.read_sql("SELECT * FROM tickets", db); db.close()
+    # Tambahkan Keterangan Virtual agar data tidak hilang saat di-export
+    df_ex['Keterangan_IT'] = df_ex['id'].apply(lambda x: st.session_state.custom_keterangan.get(x, "-"))
+    st.dataframe(df_ex, use_container_width=True)
+    st.download_button("📥 DOWNLOAD CSV", df_ex.to_csv(index=False).encode('utf-8'), "IT_Report.csv")
+
+# --- SECURITY SETTINGS (USER ACCESS CONTROL) ---
+elif menu == "Security Settings":
+    st.markdown("## 🛡️ User Access Control (Virtual)")
     
-    with col_input:
-        with st.expander("🆕 Input Tiket Baru", expanded=True):
-            with st.form("form_quick_entry", clear_on_submit=True):
-                u_in = st.text_input("Nama Lengkap")
-                c_in = st.selectbox("Lokasi Cabang", st.secrets["master"]["daftar_cabang"])
-                i_in = st.text_area("Deskripsi Kendala")
-                p_in = st.select_slider("Urgensi", ["Low", "Medium", "High"])
-                if st.form_submit_button("KIRIM LAPORAN 🚀", use_container_width=True):
-                    if u_in and i_in:
-                        db = get_connection(); cur = db.cursor()
-                        cur.execute("INSERT INTO tickets (nama_user, cabang, masalah, prioritas, status, waktu) VALUES (%s,%s,%s,%s,'Open',%s)", (u_in, c_in, i_in, p_in, get_wib_now().strftime('%Y-%m-%d %H:%M:%S')))
-                        db.close(); add_log("INPUT", f"Tiket: {u_in}"); st.rerun()
+    # Pilih User dari daftar auth di secrets
+    target_user = st.selectbox("Pilih User untuk Diatur Aksesnya", list(st.secrets["auth"].keys()))
+    
+    # Jika user belum ada di permissions, beri default
+    if target_user not in st.session_state.user_permissions:
+        st.session_state.user_permissions[target_user] = ["Input"]
 
-    with col_ctrl:
-        with st.expander("🔄 Update Status & Keterangan", expanded=True):
-            if not df.empty:
-                id_up = st.selectbox("Pilih ID Tiket untuk Edit", df['id'].tolist())
-                
-                # Input khusus untuk Keterangan Hardware/SSD (Disimpan di session_state)
-                current_ket = st.session_state.custom_keterangan.get(id_up, "")
-                new_ket = st.text_input("Keterangan Hardware (SSD/RAM/dll)", value=current_ket)
-                
-                st_up = st.selectbox("Set Status Database", ["Open", "In Progress", "Solved", "Closed"])
-                
-                c_btn1, c_btn2 = st.columns(2)
-                with c_btn1:
-                    if st.button("💾 SIMPAN SEMUA", use_container_width=True, type="primary"):
-                        # Simpan ke session_state (Virtual)
-                        st.session_state.custom_keterangan[id_up] = new_ket
-                        # Simpan ke database (Status)
-                        db = get_connection(); cur = db.cursor()
-                        cur.execute("UPDATE tickets SET status=%s WHERE id=%s", (st_up, id_up))
-                        db.close(); add_log("UPDATE", f"ID #{id_up} (Ket: {new_ket})"); st.rerun()
-                
-                with c_btn2:
-                    if st.button("🗑️ HAPUS TIKET", use_container_width=True):
-                        db = get_connection(); cur = db.cursor()
-                        cur.execute("DELETE FROM tickets WHERE id=%s", (id_up,))
-                        if id_up in st.session_state.custom_keterangan:
-                            del st.session_state.custom_keterangan[id_up]
-                        db.close(); add_log("DELETE", f"Hapus ID #{id_up}"); st.rerun()
+    st.write(f"Hak Akses Saat Ini untuk **{target_user}**: {st.session_state.user_permissions[target_user]}")
+    
+    options = ["Input", "Edit", "Hapus", "Export", "Security"]
+    new_perms = st.multiselect("Tentukan Hak Akses Baru", options, default=st.session_state.user_permissions[target_user])
+    
+    if st.button("💾 SIMPAN HAK AKSES"):
+        st.session_state.user_permissions[target_user] = new_perms
+        add_log("SECURITY", f"Update Akses {target_user}")
+        st.success(f"Akses {target_user} berhasil diperbarui!")
+        st.rerun()
+    
+    st.divider()
+    st.markdown("### 📋 Audit Log")
+    st.dataframe(pd.DataFrame(st.session_state.audit_logs), use_container_width=True)
 
-# --- HALAMAN SPAREPARTS ---
-elif menu == "📦 Inventory Spareparts" and st.session_state.logged_in:
-    try:
-        from spareparts import show_sparepart_menu
-        show_sparepart_menu(get_connection, get_wib_now, add_log)
-    except Exception as e:
-        st.error(f"Error: {e}")
-
-# ... (Halaman Export & Security Log tetap sama sesuai kode awalmu)
+elif menu == "Quick Input Mode":
+    st.write("Guest Mode Aktif")
