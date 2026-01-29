@@ -3,3 +3,5 @@ pymysql
 pandas
 sqlalchemy
 streamlit-cookies-controller
+certifi
+cryptography
