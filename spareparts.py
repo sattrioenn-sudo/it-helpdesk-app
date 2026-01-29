@@ -2,20 +2,22 @@ import streamlit as st
 import pandas as pd
 
 def show_sparepart_menu(get_connection, get_wib_now, add_log):
-    # Ambil nama database dari secrets agar query lebih spesifik
-    db_name = st.secrets["tidb"]["database"]
+    # Ambil nama DB dari secrets
+    target_db = st.secrets["tidb"]["database"]
     
     st.markdown("## ⚙️ Sparepart Inventory")
     
-    # UI Tabs agar minimalis
+    # UI Tabs
     tab_view, tab_input = st.tabs(["📦 Stock Monitoring", "➕ Input Barang"])
     
     with tab_view:
         st.markdown("<div class='action-header'>Data Inventaris Sparepart</div>", unsafe_allow_html=True)
         try:
             db = get_connection()
-            # REVISI: Menambahkan nama database ke dalam query (db_name.tabel)
-            query = f"SELECT id, nama_part, kode_part, kategori, jumlah, keterangan, waktu FROM {db_name}.spareparts ORDER BY id DESC"
+            # PAKSA PILIH DATABASE
+            db.select_db(target_db) 
+            
+            query = "SELECT id, nama_part, kode_part, kategori, jumlah, keterangan, waktu FROM spareparts ORDER BY id DESC"
             df = pd.read_sql(query, db)
             db.close()
             
@@ -43,12 +45,12 @@ def show_sparepart_menu(get_connection, get_wib_now, add_log):
                 if p_name and p_code:
                     try:
                         db = get_connection()
+                        # PAKSA PILIH DATABASE SEBELUM INSERT
+                        db.select_db(target_db)
+                        
                         cur = db.cursor()
                         waktu_wib = get_wib_now().strftime('%Y-%m-%d %H:%M:%S')
-                        
-                        # REVISI: Menambahkan nama database ke dalam query INSERT
-                        sql = f"INSERT INTO {db_name}.spareparts (nama_part, kode_part, kategori, jumlah, keterangan, waktu) VALUES (%s, %s, %s, %s, %s, %s)"
-                        
+                        sql = "INSERT INTO spareparts (nama_part, kode_part, kategori, jumlah, keterangan, waktu) VALUES (%s, %s, %s, %s, %s, %s)"
                         cur.execute(sql, (p_name, p_code, p_cat, p_qty, p_desc, waktu_wib))
                         db.close()
                         
