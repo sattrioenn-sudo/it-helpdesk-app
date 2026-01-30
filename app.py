@@ -46,172 +46,146 @@ def has_access(perm):
     user_data = st.session_state.user_db.get(user, [None, None, ["Dashboard"]])
     return perm in user_data[2]
 
-# --- 4. CSS UPGRADE (AESTHETIC & CLEAN) ---
+# --- 4. CSS UPGRADE (MINIMALIST & ANIMATED) ---
 st.markdown("""
     <style>
-    /* Global Background */
+    /* Reset & Clean Background */
     .stApp {
-        background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #020617 100%);
-        color: #f8fafc;
+        background-color: #0e1117;
+        color: #e0e0e0;
     }
     
+    /* Typing Animation Effect */
+    .typing-container {
+        font-family: 'Courier New', Courier, monospace;
+        display: inline-block;
+    }
+    
+    .typing-text {
+        overflow: hidden;
+        border-right: .15em solid #60a5fa;
+        white-space: nowrap;
+        margin: 0 auto;
+        letter-spacing: .10em;
+        animation: 
+            typing 3.5s steps(40, end),
+            blink-caret .75s step-end infinite;
+        font-size: 45px;
+        font-weight: bold;
+        color: #60a5fa;
+    }
+
+    @keyframes typing {
+        from { width: 0 }
+        to { width: 100% }
+    }
+
+    @keyframes blink-caret {
+        from, to { border-color: transparent }
+        50% { border-color: #60a5fa; }
+    }
+
+    /* Floating Simple Icon */
+    .floating-icon {
+        animation: float 3s ease-in-out infinite;
+        font-size: 60px;
+        margin-bottom: 20px;
+        display: block;
+    }
+
+    @keyframes float {
+        0% { transform: translateY(0px); }
+        50% { transform: translateY(-15px); }
+        100% { transform: translateY(0px); }
+    }
+
     /* Sidebar Styling */
     [data-testid="stSidebar"] {
-        background-color: rgba(15, 23, 42, 0.8) !important;
-        backdrop-filter: blur(20px);
-        border-right: 1px solid rgba(255, 255, 255, 0.05);
+        background-color: #0a0c10 !important;
+        border-right: 1px solid #1e293b;
     }
 
-    /* Glassmorphism Card for Welcome Screen */
-    .hero-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        height: 80vh;
-        text-align: center;
-    }
-    
-    .glass-card {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(12px);
-        padding: 50px;
-        border-radius: 40px;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-        max-width: 800px;
-    }
-
-    .main-title {
-        background: linear-gradient(to right, #60a5fa, #a855f7);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-size: 56px;
-        font-weight: 800;
-        letter-spacing: -1px;
-        margin-bottom: 10px;
-    }
-
-    .sub-title {
-        color: #94a3b8;
-        font-size: 20px;
-        font-weight: 300;
-        margin-bottom: 30px;
-    }
-
-    .divider {
-        width: 100px;
-        height: 4px;
-        background: linear-gradient(to right, #60a5fa, transparent);
-        margin: 20px auto;
-        border-radius: 2px;
-    }
-
-    .status-badge {
-        display: inline-block;
-        padding: 6px 16px;
-        border-radius: 100px;
-        background: rgba(96, 165, 250, 0.1);
-        color: #60a5fa;
-        font-size: 13px;
-        border: 1px solid rgba(96, 165, 250, 0.2);
-        margin-top: 20px;
-    }
-
-    /* Buttons uniform height/width */
+    /* Minimalist Buttons */
     .stButton > button {
         width: 100% !important;
-        border-radius: 10px;
-        padding: 12px;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 5px;
+        border: 1px solid #1e293b;
+        background: transparent;
+        color: #94a3b8;
+        padding: 10px;
+        transition: 0.3s;
         text-align: left;
     }
     
     .stButton > button:hover {
-        background: rgba(96, 165, 250, 0.1);
         border-color: #60a5fa;
-        transform: translateY(-2px);
+        color: #ffffff;
+        background: rgba(96, 165, 250, 0.05);
     }
 
     .clock-box {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 15px;
-        padding: 15px;
-        margin-bottom: 25px;
+        border: 1px solid #1e293b;
+        border-radius: 10px;
+        padding: 10px;
         text-align: center;
+        margin-bottom: 20px;
     }
     </style>
     """, unsafe_allow_html=True)
 
 # --- 5. SIDEBAR LOGIC ---
 with st.sidebar:
-    st.markdown("<h2 style='text-align: center; color: #60a5fa; margin-bottom: 0;'>🎫 IT-KEMASAN</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; font-size: 11px; color: #94a3b8; margin-bottom: 20px;'>PT. Kemasan Ciptatama Sempurna</p>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center; color: #60a5fa;'>IT-CONTROL</h3>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-size: 10px; color: #475569; margin-top:-15px;'>PT. KEMASAN CIPTATAMA SEMPURNA</p>", unsafe_allow_html=True)
     
     t_now = get_wib_now()
     st.markdown(f'''
     <div class="clock-box">
-        <div style="font-family: monospace; color: #60a5fa; font-size: 26px; font-weight: bold;">{t_now.strftime("%H:%M:%S")}</div>
-        <div style="font-size: 11px; color: #64748b;">{t_now.strftime("%A, %d %B %Y")}</div>
+        <div style="font-family: monospace; color: white; font-size: 22px;">{t_now.strftime("%H:%M:%S")}</div>
+        <div style="font-size: 10px; color: #475569;">{t_now.strftime("%d %b %Y")}</div>
     </div>
     ''', unsafe_allow_html=True)
 
     if st.session_state.get('logged_in'):
         u_name = st.session_state.user_name
-        u_role = st.session_state.user_db.get(u_name, ["", "User"])[1]
-        st.markdown(f'''<div style="background: rgba(96, 165, 250, 0.05); padding: 15px; border-radius: 12px; border-left: 4px solid #60a5fa; margin-bottom: 20px;">
-            <div style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Authenticated As</div>
-            <div style="font-weight: bold; color: #f8fafc;">{u_name.upper()}</div>
-            <div style="font-size: 11px; color: #60a5fa;">🛡️ {u_role}</div>
-        </div>''', unsafe_allow_html=True)
+        st.markdown(f"<p style='font-size: 11px; color: #475569;'>USER: <b style='color:#60a5fa;'>{u_name.upper()}</b></p>", unsafe_allow_html=True)
         
-        if st.button("📊 Dashboard Monitor", use_container_width=True): st.session_state.current_menu = "📊 Dashboard"
-        if has_access("Inventory") and st.button("📦 Inventory Spareparts", use_container_width=True): st.session_state.current_menu = "📦 Inventory"
-        if has_access("User Management") and st.button("👥 Manajemen User", use_container_width=True): st.session_state.current_menu = "👥 User Management"
-        if has_access("Security") and st.button("🛡️ Security Log", use_container_width=True): st.session_state.current_menu = "🛡️ Security"
+        if st.button("📊 Dashboard", use_container_width=True): st.session_state.current_menu = "📊 Dashboard"
+        if has_access("Inventory") and st.button("📦 Inventory", use_container_width=True): st.session_state.current_menu = "📦 Inventory"
+        if has_access("User Management") and st.button("👥 User Mgmt", use_container_width=True): st.session_state.current_menu = "👥 User Management"
+        if has_access("Security") and st.button("🛡️ Security", use_container_width=True): st.session_state.current_menu = "🛡️ Security"
         
-        st.markdown("<br>"*5, unsafe_allow_html=True)
-        if st.button("🔒 Logout System", use_container_width=True):
+        st.markdown("---")
+        if st.button("🔒 Logout", use_container_width=True):
             st.session_state.logged_in = False
             st.rerun()
     else:
-        st.markdown("<p style='font-size: 12px; color: #64748b; text-align: center;'>PLEASE IDENTIFY YOURSELF</p>", unsafe_allow_html=True)
-        u_in = st.text_input("Username").lower()
-        p_in = st.text_input("Password", type="password")
-        if st.button("🔓 AUTHORIZE", use_container_width=True):
+        u_in = st.text_input("User").lower()
+        p_in = st.text_input("Pass", type="password")
+        if st.button("🔓 LOGIN", use_container_width=True):
             if u_in in st.session_state.user_db and p_in == st.session_state.user_db[u_in][0]:
                 st.session_state.logged_in, st.session_state.user_name = True, u_in
                 st.rerun()
-            else:
-                st.error("Access Denied")
 
-# --- 6. FULL SCREEN WELCOME UI (IF NOT LOGGED IN) ---
+# --- 6. FULL SCREEN WELCOME UI (ANIMATED & MINIMALIST) ---
 if not st.session_state.get('logged_in'):
     st.markdown(f"""
-    <div class="hero-container">
-        <div class="glass-card">
-            <div style="font-size: 50px; margin-bottom: 10px;">🛡️</div>
-            <h1 class="main-title">Control Hub IT</h1>
-            <p class="sub-title">Streamlining IT Operations & Infrastructure Support</p>
-            <div class="divider"></div>
-            <p style="color: #64748b; font-size: 16px; max-width: 500px; margin: 0 auto;">
-                Welcome to the official internal portal for PT. Kemasan Ciptatama Sempurna. 
-                Manage tickets, track inventory, and monitor system security from one central location.
-            </p>
-            <div class="status-badge">System Online: {t_now.strftime("%Y")}</div>
+    <div style="height: 80vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
+        <div class="floating-icon">🛡️</div>
+        <div class="typing-container">
+            <div class="typing-text">SYSTEM ACCESS AUTHORIZATION</div>
         </div>
+        <div style="width: 50px; height: 2px; background: #60a5fa; margin: 20px 0;"></div>
+        <p style="color: #475569; font-family: monospace; font-size: 14px; letter-spacing: 3px;">
+            INTERNAL IT PORTAL | PT. KCS
+        </p>
     </div>
     """, unsafe_allow_html=True)
     st.stop()
 
-# --- 7. MAIN APP CONTENT (AFTER LOGIN) ---
-# Kode menu (Dashboard, Inventory, User Management, Security) kamu tetap di bawah sini...
+# --- 7. MAIN APP CONTENT ---
 if st.session_state.current_menu == "📊 Dashboard":
     st.markdown("### 📊 Dashboard Monitor")
-    # ... (Gunakan kode dashboard dari response sebelumnya)
     db = get_connection()
     df_raw = pd.read_sql("SELECT * FROM tickets ORDER BY id ASC", db)
     try:
@@ -225,11 +199,11 @@ if st.session_state.current_menu == "📊 Dashboard":
     m3.metric("🟡 In Progress", len(df_raw[df_raw['status'] == 'In Progress']))
     m4.metric("🟢 Solved", len(df_raw[df_raw['status'] == 'Solved']))
 
-    st.markdown('<div class="filter-section">', unsafe_allow_html=True)
+    st.markdown('<div style="padding: 10px; border-bottom: 1px solid #1e293b; margin-bottom: 20px;"></div>', unsafe_allow_html=True)
+    
     c_f1, c_f2 = st.columns(2)
     d_start = c_f1.date_input("Filter Dari", value=datetime.now() - timedelta(days=30))
     d_end = c_f2.date_input("Filter Sampai", value=datetime.now())
-    st.markdown('</div>', unsafe_allow_html=True)
 
     df_raw['tgl_saja'] = pd.to_datetime(df_raw['waktu']).dt.date
     df = df_raw[(df_raw['tgl_saja'] >= d_start) & (df_raw['tgl_saja'] <= d_end)].copy()
@@ -286,7 +260,6 @@ if st.session_state.current_menu == "📊 Dashboard":
 
 elif st.session_state.current_menu == "👥 User Management":
     st.markdown("### 👥 User Access Management")
-    # ... (Kode User Management kamu)
     user_options = list(st.session_state.user_db.keys())
     sel_user = st.selectbox("🔍 Pilih User", ["-- Tambah Baru --"] + user_options)
     v_pass, v_role, v_perms, is_edit = "", "", ["Dashboard"], False
