@@ -62,10 +62,16 @@ st.markdown("""
     .digital-clock { font-family: 'monospace'; color: #60a5fa; font-size: 24px; font-weight: bold; }
     .user-profile { background: rgba(255, 255, 255, 0.05); padding: 12px; border-radius: 12px; border-left: 4px solid #60a5fa; margin-bottom: 20px; }
     .filter-section { background: rgba(255, 255, 255, 0.02); padding: 15px; border-radius: 15px; border: 1px dashed rgba(96, 165, 250, 0.3); margin: 15px 0; }
+    
+    /* Login Welcome Screen Style */
+    .welcome-card { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 30px; padding: 60px; text-align: center; backdrop-filter: blur(15px); margin-top: 50px; }
+    .welcome-title { color: #60a5fa; font-size: 42px; font-weight: 800; margin-bottom: 10px; }
+    .welcome-sub { color: #94a3b8; font-size: 18px; margin-bottom: 30px; }
+    .feature-tag { display: inline-block; background: rgba(96, 165, 250, 0.1); color: #60a5fa; padding: 5px 15px; border-radius: 20px; font-size: 12px; margin: 5px; border: 1px solid rgba(96, 165, 250, 0.3); }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 5. LOGIC SIDEBAR ---
+# --- 5. LOGIC SIDEBAR & LOGIN ---
 with st.sidebar:
     st.markdown("<h2 style='text-align: center; color: #60a5fa; margin-bottom: 0;'>🎫 IT-KEMASAN</h2>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; font-size: 11px; color: #94a3b8; margin-bottom: 15px;'>PT. Kemasan Ciptatama Sempurna</p>", unsafe_allow_html=True)
@@ -88,17 +94,44 @@ with st.sidebar:
             st.session_state.logged_in = False
             st.rerun()
     else:
-        u_in, p_in = st.text_input("Username").lower(), st.text_input("Password", type="password")
-        if st.button("🔓 LOGIN", use_container_width=True):
+        st.markdown("<br><p style='text-align:center; color:#60a5fa;'>Please Login to Continue</p>", unsafe_allow_html=True)
+        u_in = st.text_input("Username").lower()
+        p_in = st.text_input("Password", type="password")
+        if st.button("🔓 ACCESS SYSTEM", use_container_width=True):
             if u_in in st.session_state.user_db and p_in == st.session_state.user_db[u_in][0]:
                 st.session_state.logged_in, st.session_state.user_name = True, u_in
+                add_log("LOGIN", "User logged into system")
                 st.rerun()
+            else:
+                st.error("Invalid Credentials")
 
-if not st.session_state.get('logged_in'): st.stop()
+# --- 6. WELCOME SCREEN (WAW DESIGN) ---
+if not st.session_state.get('logged_in'):
+    col_l, col_r = st.columns([1, 10]) # Memberi ruang agar center
+    with col_r:
+        st.markdown("""
+        <div class="welcome-card">
+            <div style="font-size: 60px; margin-bottom: 20px;">🚀</div>
+            <div class="welcome-title">IT TICKETING SYSTEM</div>
+            <div class="welcome-sub">Integrated Support & Inventory Management System</div>
+            <div style="margin-bottom: 40px;">
+                <span class="feature-tag">⚡ Real-time Tracking</span>
+                <span class="feature-tag">📦 Inventory Control</span>
+                <span class="feature-tag">🛡️ Secure Access</span>
+                <span class="feature-tag">📊 Advanced Reporting</span>
+            </div>
+            <p style="color: #64748b; font-size: 14px;">PT. Kemasan Ciptatama Sempurna - Surabaya</p>
+            <div style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 20px; color: #475569; font-size: 12px;">
+                V 2.0.26 | Created for IT Internal Team
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    st.stop()
 
-# --- 6. MENU: DASHBOARD ---
+# --- 7. MENU: DASHBOARD (TAMPIL SETELAH LOGIN) ---
 if st.session_state.current_menu == "📊 Dashboard":
     st.markdown("### 📊 IT Support Dashboard")
+    # ... (Semua kode Dashboard, Reporting, Export, Update Status kamu di sini tetap sama seperti sebelumnya)
     db = get_connection()
     df_raw = pd.read_sql("SELECT * FROM tickets ORDER BY id ASC", db)
     try:
@@ -112,7 +145,6 @@ if st.session_state.current_menu == "📊 Dashboard":
     m3.metric("🟡 In Progress", len(df_raw[df_raw['status'] == 'In Progress']))
     m4.metric("🟢 Solved", len(df_raw[df_raw['status'] == 'Solved']))
 
-    # Filter Box
     st.markdown('<div class="filter-section">', unsafe_allow_html=True)
     c_f1, c_f2 = st.columns(2)
     d_start = c_f1.date_input("Filter Dari", value=datetime.now() - timedelta(days=30))
@@ -131,7 +163,6 @@ if st.session_state.current_menu == "📊 Dashboard":
 
     st.dataframe(df[['ID Ticket', 'nama_user', 'cabang', 'masalah', 'status', 'waktu', 'Keterangan IT']].style.map(color_status_only, subset=['status']), use_container_width=True, hide_index=True)
 
-    # --- FUNGSI EXPORT (KEMBALI KE POSISI) ---
     if has_access("Export"):
         st.download_button("📥 DOWNLOAD REPORT CSV", df.to_csv(index=False).encode('utf-8'), "IT_Report.csv", use_container_width=True)
 
@@ -173,8 +204,9 @@ if st.session_state.current_menu == "📊 Dashboard":
                         save_data('keterangan_it.json', st.session_state.custom_keterangan)
                         db.commit(); db.close(); st.rerun()
 
-# --- 7. MENU: USER MANAGEMENT (FULL) ---
+# --- 8. MENU LAINNYA ---
 elif st.session_state.current_menu == "👥 User Management":
+    # (Kode User Management tetap aman)
     st.markdown("### 👥 User Access Management")
     user_options = list(st.session_state.user_db.keys())
     sel_user = st.selectbox("🔍 Pilih User", ["-- Tambah Baru --"] + user_options)
@@ -191,15 +223,12 @@ elif st.session_state.current_menu == "👥 User Management":
             st.session_state.user_db[n_u] = [n_p, n_r, new_perms]
             save_data('users_it.json', st.session_state.user_db); st.rerun()
 
-# --- 8. MENU: SECURITY (KEMBALI) ---
 elif st.session_state.current_menu == "🛡️ Security":
     st.markdown("### 🛡️ Security Audit Log")
     if st.session_state.security_logs:
         st.dataframe(pd.DataFrame(st.session_state.security_logs), use_container_width=True)
-    else:
-        st.info("Belum ada log aktivitas.")
+    else: st.info("Belum ada log aktivitas.")
 
-# --- 9. MENU: INVENTORY ---
 elif st.session_state.current_menu == "📦 Inventory":
     try:
         from spareparts import show_sparepart_menu
