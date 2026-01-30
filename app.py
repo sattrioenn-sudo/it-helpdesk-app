@@ -25,7 +25,6 @@ if 'custom_keterangan' not in st.session_state:
     st.session_state.custom_keterangan = load_data('keterangan_it.json', {})
 
 if 'user_db' not in st.session_state:
-    # Default admin jika file belum ada
     default_users = {"admin": ["kcs_2026", "Admin", ["Dashboard", "Input Tiket", "Update Status", "Inventory", "Export", "Security", "User Management", "Hapus Tiket"]]}
     st.session_state.user_db = load_data('users_it.json', default_users)
 
@@ -79,10 +78,8 @@ with st.sidebar:
     st.markdown(f'''<div class="clock-inner"><div class="digital-clock">{wib.strftime("%H:%M:%S")}</div><div style="color: #94a3b8; font-size: 11px;">{wib.strftime("%A, %d %b %Y")}</div></div>''', unsafe_allow_html=True)
 
     if st.session_state.logged_in:
-        # PENGAMAN ERROR: Menggunakan .get() agar tidak crash jika belum login
         u_name = st.session_state.get("user_name", "GUEST").upper()
         u_role = st.session_state.get("user_role", "No Role")
-        
         st.markdown(f"<p style='text-align: center;'>User: <b>{u_name}</b><br>Role: <small>{u_role}</small></p>", unsafe_allow_html=True)
         
         menu_list = ["Dashboard Monitor"]
@@ -129,7 +126,6 @@ if menu == "Dashboard Monitor":
     df_stok = pd.read_sql(query_sp, db)
     db.close()
 
-    # Perhitungan Waktu
     df['Waktu Input'] = pd.to_datetime(df['waktu']).dt.strftime('%d/%m/%Y %H:%M')
     df['Waktu Solved'] = df['id'].apply(lambda x: st.session_state.solved_times.get(str(x), "-"))
 
@@ -141,7 +137,6 @@ if menu == "Dashboard Monitor":
 
     st.markdown("---")
     df['Keterangan IT'] = df['id'].apply(lambda x: st.session_state.custom_keterangan.get(str(x), "-"))
-    
     st.dataframe(df[['id', 'nama_user', 'cabang', 'masalah', 'status', 'Waktu Input', 'Waktu Solved', 'Keterangan IT']], use_container_width=True, hide_index=True)
 
     col_a, col_b = st.columns([1, 1])
@@ -176,55 +171,77 @@ if menu == "Dashboard Monitor":
                 if st.button("Konfirmasi Update", use_container_width=True):
                     db = get_connection(); cur = db.cursor()
                     cur.execute("UPDATE tickets SET status=%s WHERE id=%s", (st_sel, id_sel))
-                    
                     if st_sel == "Solved":
                         st.session_state.solved_times[str(id_sel)] = get_wib_now().strftime('%d/%m/%Y %H:%M')
                         save_data('solved_times.json', st.session_state.solved_times)
-
                     final_ket = cat_it
                     if ganti and sp_data is not None:
                         final_ket += f" [Ganti: {sp_data['nama_part']} x{qty}]"
                         cur.execute("INSERT INTO spareparts (nama_part, kode_part, kategori, jumlah, keterangan, waktu) VALUES (%s,%s,%s,%s,%s,%s)", (sp_data['nama_part'], sp_data['kode_part'], sp_data['kategori'], -qty, f"[APPROVED] Tiket #{id_sel}", get_wib_now().strftime('%Y-%m-%d %H:%M:%S')))
-                    
                     st.session_state.custom_keterangan[str(id_sel)] = final_ket
                     save_data('keterangan_it.json', st.session_state.custom_keterangan)
                     db.commit(); db.close(); st.rerun()
 
-# --- 7. MENU: MANAJEMEN USER ---
+# --- 7. MENU: MANAJEMEN USER (REVISED) ---
 elif menu == "👥 Manajemen User":
     st.markdown("### 👥 User Access Management")
+    
+    # Bagian Pemilih User untuk Edit Otomatis
+    user_options = list(st.session_state.user_db.keys())
+    sel_user = st.selectbox("🔍 Pilih User untuk Diedit (Atau biarkan untuk Tambah Baru)", ["-- Tambah User Baru --"] + user_options)
+    
+    # Load data jika user dipilih
+    val_pass = ""
+    val_role = ""
+    val_perms = ["Dashboard"]
+    is_editing = False
+    
+    if sel_user != "-- Tambah User Baru --":
+        u_data = st.session_state.user_db[sel_user]
+        val_pass = u_data[0]
+        val_role = u_data[1]
+        val_perms = u_data[2]
+        is_editing = True
+
+    st.markdown("---")
     c1, c2 = st.columns([1, 1.5])
     with c1:
         st.write("**Daftar User**")
         st.dataframe(pd.DataFrame([{"User": k, "Role": v[1]} for k, v in st.session_state.user_db.items()]), hide_index=True)
     
     with c2:
-        st.write("**Tambah/Edit User**")
-        with st.form("user_management"):
-            n_u = st.text_input("Username").lower()
-            n_p = st.text_input("Password")
-            n_r = st.selectbox("Role", ["Staff IT", "Admin", "Manager"])
+        st.write(f"**{'Edit' if is_editing else 'Tambah'} User**")
+        with st.form("user_management", clear_on_submit=not is_editing):
+            # Username di-disable jika sedang edit
+            n_u = st.text_input("Username", value=sel_user if is_editing else "", disabled=is_editing).lower()
+            n_p = st.text_input("Password", value=val_pass)
+            # Role sekarang input bebas
+            n_r = st.text_input("Role (Input Bebas)", value=val_role)
+            
             st.write("Izin Akses:")
             p1, p2 = st.columns(2)
-            i_tix = p1.checkbox("Input Tiket")
-            i_upd = p1.checkbox("Update Status")
-            i_inv = p1.checkbox("Inventory")
-            i_exp = p2.checkbox("Export")
-            i_usr = p2.checkbox("User Management")
-            i_sec = p2.checkbox("Security")
+            i_tix = p1.checkbox("Input Tiket", value="Input Tiket" in val_perms)
+            i_upd = p1.checkbox("Update Status", value="Update Status" in val_perms)
+            i_inv = p1.checkbox("Inventory", value="Inventory" in val_perms)
+            i_exp = p2.checkbox("Export", value="Export" in val_perms)
+            i_usr = p2.checkbox("User Management", value="User Management" in val_perms)
+            i_sec = p2.checkbox("Security", value="Security" in val_perms)
             
-            if st.form_submit_button("Simpan User"):
-                p_list = ["Dashboard"]
-                if i_tix: p_list.append("Input Tiket")
-                if i_upd: p_list.append("Update Status")
-                if i_inv: p_list.append("Inventory")
-                if i_exp: p_list.append("Export")
-                if i_usr: p_list.append("User Management")
-                if i_sec: p_list.append("Security")
-                
-                st.session_state.user_db[n_u] = [n_p, n_r, p_list]
-                save_data('users_it.json', st.session_state.user_db)
-                st.success("User Tersimpan!"); st.rerun()
+            if st.form_submit_button("Simpan Perubahan" if is_editing else "Simpan User"):
+                if n_u and n_p:
+                    p_list = ["Dashboard"]
+                    if i_tix: p_list.append("Input Tiket")
+                    if i_upd: p_list.append("Update Status")
+                    if i_inv: p_list.append("Inventory")
+                    if i_exp: p_list.append("Export")
+                    if i_usr: p_list.append("User Management")
+                    if i_sec: p_list.append("Security")
+                    
+                    st.session_state.user_db[n_u] = [n_p, n_r, p_list]
+                    save_data('users_it.json', st.session_state.user_db)
+                    st.success(f"User {n_u} Berhasil Disimpan!"); st.rerun()
+                else:
+                    st.error("Username dan Password harus diisi")
 
 # --- 8. MENU LAINNYA ---
 elif menu == "📦 Inventory Spareparts":
