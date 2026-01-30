@@ -54,27 +54,84 @@ def has_access(perm):
     user_data = st.session_state.user_db.get(user, [None, None, ["Dashboard"]])
     return perm in user_data[2]
 
-# --- 4. UI ENHANCEMENT ---
+# --- 4. UI ENHANCEMENT (UPGRADED DESIGN) ---
 st.markdown("""
     <style>
     .stApp { background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%); }
-    [data-testid="stMetric"] { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 20px; }
-    div[data-testid="stDataFrame"] { background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(96, 165, 250, 0.2); border-radius: 15px; padding: 10px; }
-    .clock-inner { background: rgba(59, 130, 246, 0.1); border-radius: 15px; padding: 10px; text-align: center; border: 1px solid rgba(59, 130, 246, 0.3); margin-bottom: 20px; }
-    .digital-clock { font-family: 'JetBrains Mono', monospace; color: #60a5fa; font-size: 24px; font-weight: 800; }
+    
+    /* Modern Metric Cards */
+    [data-testid="stMetric"] { 
+        background: rgba(255, 255, 255, 0.03); 
+        border: 1px solid rgba(255, 255, 255, 0.1); 
+        padding: 20px; border-radius: 20px;
+        backdrop-filter: blur(10px);
+    }
+    
+    /* Innovated Sidebar Buttons */
+    .stButton > button {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid rgba(96, 165, 250, 0.2);
+        background: rgba(255, 255, 255, 0.05);
+        color: #e2e8f0;
+        padding: 10px 20px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        text-align: left;
+    }
+    .stButton > button:hover {
+        background: rgba(96, 165, 250, 0.15);
+        border-color: #60a5fa;
+        color: #ffffff;
+        box-shadow: 0 0 15px rgba(96, 165, 250, 0.3);
+        transform: translateX(5px);
+    }
+    
+    /* Table Styling */
+    div[data-testid="stDataFrame"] { 
+        background: rgba(30, 41, 59, 0.4); 
+        border: 1px solid rgba(96, 165, 250, 0.2); 
+        border-radius: 15px; padding: 10px; 
+    }
+
+    .clock-inner { 
+        background: rgba(59, 130, 246, 0.05); 
+        border-radius: 15px; padding: 15px; text-align: center; 
+        border: 1px solid rgba(59, 130, 246, 0.2); margin-bottom: 20px; 
+    }
+    .digital-clock { font-family: 'JetBrains Mono', monospace; color: #60a5fa; font-size: 26px; font-weight: 800; letter-spacing: 2px; }
+    
+    /* User Profile Box */
+    .user-profile {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 12px;
+        border-radius: 12px;
+        border-left: 4px solid #60a5fa;
+        margin-bottom: 20px;
+    }
     </style>
     """, unsafe_allow_html=True)
 
 # --- 5. LOGIC SIDEBAR ---
 with st.sidebar:
-    st.markdown("<h2 style='text-align: center; color: #60a5fa;'>🎫 IT-KEMASAN GROUP</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #60a5fa; margin-bottom:0;'>🎫 IT-KEMASAN</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-size:10px; color:#94a3b8; margin-bottom:20px;'>MANAGEMENT SYSTEM v2.0</p>", unsafe_allow_html=True)
+    
     wib = get_wib_now()
-    st.markdown(f'''<div class="clock-inner"><div class="digital-clock">{wib.strftime("%H:%M:%S")}</div><div style="color: #94a3b8; font-size: 11px;">{wib.strftime("%A, %d %b %Y")}</div></div>''', unsafe_allow_html=True)
+    st.markdown(f'''<div class="clock-inner"><div class="digital-clock">{wib.strftime("%H:%M:%S")}</div><div style="color: #94a3b8; font-size: 11px; margin-top:5px;">{wib.strftime("%A, %d %B %Y")}</div></div>''', unsafe_allow_html=True)
 
     if st.session_state.get('logged_in'):
-        u_name = st.session_state.user_name.upper()
-        st.markdown(f"<p style='text-align: center;'>User: <b>{u_name}</b></p>", unsafe_allow_html=True)
-        st.markdown("---")
+        u_name = st.session_state.user_name
+        u_role = st.session_state.user_db.get(u_name, ["", "User"])[1]
+        
+        st.markdown(f'''
+        <div class="user-profile">
+            <div style="font-size: 12px; color: #94a3b8;">Active User</div>
+            <div style="font-weight: bold; color: #ffffff;">{u_name.upper()}</div>
+            <div style="font-size: 11px; color: #60a5fa; margin-top:4px;">🛡️ {u_role}</div>
+        </div>
+        ''', unsafe_allow_html=True)
+        
+        st.markdown("<p style='font-size:11px; color:#475569; margin-left:5px;'>MAIN MENU</p>", unsafe_allow_html=True)
         if st.button("📊 Dashboard Monitor", use_container_width=True): st.session_state.current_menu = "📊 Dashboard"
         if has_access("Inventory"):
             if st.button("📦 Inventory Spareparts", use_container_width=True): st.session_state.current_menu = "📦 Inventory"
@@ -82,8 +139,10 @@ with st.sidebar:
             if st.button("👥 Manajemen User", use_container_width=True): st.session_state.current_menu = "👥 User Management"
         if has_access("Security"):
             if st.button("🛡️ Security Log", use_container_width=True): st.session_state.current_menu = "🛡️ Security"
-        st.markdown("---")
-        if st.button("🔒 LOGOUT", use_container_width=True):
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("🔒 Logout System", use_container_width=True):
+            add_log("LOGOUT", f"User {u_name} logged out")
             st.session_state.logged_in = False
             st.rerun()
     else:
@@ -93,6 +152,7 @@ with st.sidebar:
             if u_in in st.session_state.user_db and p_in == st.session_state.user_db[u_in][0]:
                 st.session_state.logged_in = True
                 st.session_state.user_name = u_in
+                add_log("LOGIN", f"User {u_in} logged in")
                 st.rerun()
             else: st.error("Kredensial Salah")
 
@@ -103,7 +163,8 @@ if not st.session_state.get('logged_in'):
 menu = st.session_state.current_menu
 if menu == "📊 Dashboard":
     st.markdown("### 📊 IT Support Dashboard")
-    db = get_connection(); df = pd.read_sql("SELECT * FROM tickets ORDER BY id DESC", db)
+    # MODIFIKASI: ORDER BY id ASC untuk urutan kronologis
+    db = get_connection(); df = pd.read_sql("SELECT * FROM tickets ORDER BY id ASC", db)
     df_stok = pd.read_sql("SELECT nama_part, kode_part, kategori, SUM(jumlah) as total FROM spareparts WHERE keterangan LIKE '%%[APPROVED]%%' GROUP BY nama_part, kode_part, kategori HAVING total > 0", db)
     db.close()
 
@@ -113,8 +174,9 @@ if menu == "📊 Dashboard":
     m3.metric("🟡 In Progress", len(df[df['status'] == 'In Progress']))
     m4.metric("🟢 Solved", len(df[df['status'] == 'Solved']))
 
+    # Visual ID urut 1, 2, 3... (ID Ticket 1 adalah baris pertama/paling lama)
     df = df.reset_index(drop=True)
-    df.insert(0, 'ID Ticket', range(1, len(df) + 1)) # Visual ID urut
+    df.insert(0, 'ID Ticket', range(1, len(df) + 1)) 
     df['Keterangan IT'] = df['id'].apply(lambda x: st.session_state.custom_keterangan.get(str(x), "-"))
     
     st.dataframe(df[['ID Ticket', 'nama_user', 'cabang', 'masalah', 'status', 'waktu', 'Keterangan IT']], use_container_width=True, hide_index=True)
@@ -132,16 +194,17 @@ if menu == "📊 Dashboard":
                     if st.form_submit_button("Submit"):
                         db = get_connection(); cur = db.cursor()
                         cur.execute("INSERT INTO tickets (nama_user, cabang, masalah, status, waktu) VALUES (%s,%s,%s,'Open',%s)", (un, cb, ms, get_wib_now()))
+                        add_log("TICKET", f"New ticket from {un}")
                         db.close(); st.rerun()
     with c_b:
         if has_access("Update Status"):
             with st.expander("🛠️ Update Status & Sparepart"):
+                # Menampilkan label urut untuk memudahkan user
                 tix_list = {f"#{row['ID Ticket']} - {row['nama_user']}": row['id'] for _, row in df.iterrows()}
                 sel_label = st.selectbox("Pilih Tiket", list(tix_list.keys()))
                 sel_id = tix_list[sel_label]
                 new_st = st.selectbox("Status Baru", ["Open", "In Progress", "Solved", "Closed"])
                 
-                # FUNGSI SPAREPART KEMBALI
                 pakai_sp = st.checkbox("Gunakan Sparepart?")
                 sp_data, qty = None, 0
                 if pakai_sp and not df_stok.empty:
@@ -160,15 +223,15 @@ if menu == "📊 Dashboard":
                         cur.execute("INSERT INTO spareparts (nama_part, kode_part, kategori, jumlah, keterangan, waktu) VALUES (%s,%s,%s,%s,%s,%s)", (sp_data['nama_part'], sp_data['kode_part'], sp_data['kategori'], -qty, f"[APPROVED] Tiket #{sel_id}", get_wib_now()))
                     st.session_state.custom_keterangan[str(sel_id)] = final_ket
                     save_data('keterangan_it.json', st.session_state.custom_keterangan)
+                    add_log("UPDATE", f"Update ticket #{sel_id} to {new_st}")
                     db.commit(); db.close(); st.rerun()
 
-# --- 7. MENU: USER MANAGEMENT ---
+# (Menu User Management, Security, & Inventory tetap berfungsi seperti sebelumnya dengan UI yang ter-upgrade otomatis)
 elif menu == "👥 User Management":
     st.markdown("### 👥 User Access Management")
     user_options = list(st.session_state.user_db.keys())
     sel_user = st.selectbox("🔍 Pilih User untuk Diedit", ["-- Tambah User Baru --"] + user_options)
     
-    # Load data jika editing
     v_pass, v_role, v_perms, is_edit = "", "", ["Dashboard"], False
     if sel_user != "-- Tambah User Baru --":
         d = st.session_state.user_db[sel_user]
@@ -179,7 +242,6 @@ elif menu == "👥 User Management":
         n_p = st.text_input("Password", value=v_pass)
         n_r = st.text_input("Role", value=v_role)
         
-        # FUNGSI IZIN AKSES KEMBALI
         st.write("Izin Akses:")
         c1, c2 = st.columns(2)
         i1 = c1.checkbox("Dashboard", value="Dashboard" in v_perms)
@@ -196,9 +258,9 @@ elif menu == "👥 User Management":
                 if val: new_perms.append(p)
             st.session_state.user_db[n_u] = [n_p, n_r, new_perms]
             save_data('users_it.json', st.session_state.user_db)
+            add_log("USER", f"Modified user {n_u}")
             st.rerun()
 
-# --- 8. MENU LAINNYA ---
 elif menu == "🛡️ Security":
     st.markdown("### 🛡️ Security Audit Log")
     st.dataframe(pd.DataFrame(st.session_state.security_logs), use_container_width=True)
