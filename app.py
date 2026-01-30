@@ -113,8 +113,8 @@ st.markdown("""
 
 # --- 5. LOGIC SIDEBAR ---
 with st.sidebar:
-    st.markdown("<h2 style='text-align: center; color: #60a5fa; margin-bottom:0;'>🎫 IT-KEMASAN</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; font-size:10px; color:#94a3b8; margin-bottom:20px;'>MANAGEMENT SYSTEM v2.0</p>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #60a5fa; margin-bottom:0;'>🎫 IT-KEMASAN GROUP</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-size:10px; color:#94a3b8; margin-bottom:20px;'>PT. KEMASAN CIPTATAMA SEMPURNA</p>", unsafe_allow_html=True)
     
     wib = get_wib_now()
     st.markdown(f'''<div class="clock-inner"><div class="digital-clock">{wib.strftime("%H:%M:%S")}</div><div style="color: #94a3b8; font-size: 11px; margin-top:5px;">{wib.strftime("%A, %d %B %Y")}</div></div>''', unsafe_allow_html=True)
