@@ -7,7 +7,7 @@ import os
 from datetime import datetime, timedelta
 
 # --- 1. KONFIGURASI & THEME ---
-st.set_page_config(page_title="IT Kemasan", page_icon="🎫", layout="wide")
+st.set_page_config(page_title="IT Kemasan Pro", page_icon="🎫", layout="wide")
 
 # --- 2. STORAGE VIRTUAL ---
 def load_data(file, default):
@@ -45,8 +45,8 @@ def add_log(action, detail):
         "action": action,
         "detail": detail
     }
-    st.session_state.security_logs.insert(0, log_entry) # Log terbaru di atas
-    save_data('security_logs.json', st.session_state.security_logs[:500]) # Simpan 500 log terakhir
+    st.session_state.security_logs.insert(0, log_entry)
+    save_data('security_logs.json', st.session_state.security_logs[:500])
 
 def get_connection():
     return pymysql.connect(
@@ -64,27 +64,34 @@ def has_access(perm):
     user_data = st.session_state.user_db.get(user, [None, None, ["Dashboard"]])
     return perm in user_data[2]
 
-# --- 4. UI ENHANCEMENT (ESTETIK & SCROLLABLE) ---
+# --- 4. UI ENHANCEMENT (ESTETIK CARDS & GRAPHS) ---
 st.markdown("""
     <style>
     .stApp { background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%); }
     
-    /* Container Metric */
-    div[data-testid="metric-container"] {
-        background: rgba(255, 255, 255, 0.03);
+    /* Card Style untuk Metric */
+    [data-testid="stMetric"] {
+        background: rgba(255, 255, 255, 0.05);
         border: 1px solid rgba(255, 255, 255, 0.1);
-        padding: 15px; border-radius: 15px;
+        padding: 20px;
+        border-radius: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        transition: transform 0.3s ease;
+    }
+    [data-testid="stMetric"]:hover {
+        transform: translateY(-5px);
+        border: 1px solid rgba(96, 165, 250, 0.5);
     }
 
-    /* Styling Tabel Estetik */
+    /* Tabel Styling */
     div[data-testid="stDataFrame"] {
         background: rgba(30, 41, 59, 0.4);
         border: 1px solid rgba(96, 165, 250, 0.2);
-        border-radius: 12px;
-        padding: 5px;
+        border-radius: 15px;
+        padding: 10px;
     }
 
-    /* Custom Scrollbar */
+    /* Scrollbar */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
     ::-webkit-scrollbar-thumb:hover { background: #60a5fa; }
@@ -120,17 +127,9 @@ with st.sidebar:
         menu = st.selectbox("📂 MENU NAVIGASI", menu_list)
         
         if st.button("🔒 LOGOUT", use_container_width=True):
-            add_log("LOGOUT", f"User {u_name} keluar sistem")
+            add_log("LOGOUT", f"User {u_name} logout")
             st.session_state.logged_in = False
             st.rerun()
-
-        st.markdown("---")
-        try:
-            db = get_connection()
-            df_graph = pd.read_sql("SELECT status, COUNT(*) as qty FROM tickets GROUP BY status", db)
-            db.close()
-            if not df_graph.empty: st.bar_chart(df_graph.set_index('status'), height=150)
-        except: st.caption("Database sedang sibuk...")
     else:
         u_in = st.text_input("Username").lower()
         p_in = st.text_input("Password", type="password")
@@ -139,7 +138,8 @@ with st.sidebar:
                 st.session_state.logged_in = True
                 st.session_state.user_name = u_in
                 st.session_state.user_role = st.session_state.user_db[u_in][1]
-                add_log("LOGIN", f"Login sukses sebagai {st.session_state.user_role}")
+                add_log("LOGIN", f"Login sukses")
+                st.toast(f"Selamat Datang, {u_name}!", icon="👋")
                 st.rerun()
             else: st.error("Kredensial Salah")
 
@@ -149,27 +149,37 @@ if not st.session_state.logged_in:
 
 # --- 6. MENU: DASHBOARD MONITOR ---
 if menu == "Dashboard Monitor":
-    st.markdown("### 📊 IT Support Metrics")
+    st.markdown("### 📊 IT Support Analytics")
     db = get_connection()
     df = pd.read_sql("SELECT * FROM tickets ORDER BY id DESC", db)
     
+    # Query untuk stok & grafik bulanan
     query_sp = "SELECT nama_part, kode_part, kategori, CAST(SUM(jumlah) AS SIGNED) as total FROM spareparts WHERE keterangan LIKE '%%[APPROVED]%%' GROUP BY nama_part, kode_part, kategori HAVING total > 0"
     df_stok = pd.read_sql(query_sp, db)
     db.close()
 
-    df['Waktu Input'] = pd.to_datetime(df['waktu']).dt.strftime('%d/%m/%Y %H:%M')
+    # Data Processing untuk Metric & Graph
+    df['Waktu Input'] = pd.to_datetime(df['waktu'])
+    df['Bulan'] = df['Waktu Input'].dt.strftime('%b %Y')
+    df['Waktu Tampil'] = df['Waktu Input'].dt.strftime('%d/%m/%Y %H:%M')
     df['Waktu Solved'] = df['id'].apply(lambda x: st.session_state.solved_times.get(str(x), "-"))
 
+    # ROW 1: METRICS WITH CARDS
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Total Tiket", len(df))
     m2.metric("🔴 Open", len(df[df['status'] == 'Open']))
     m3.metric("🟡 In Progress", len(df[df['status'] == 'In Progress']))
     m4.metric("🟢 Solved", len(df[df['status'] == 'Solved']))
 
+    # ROW 2: GRAPH PERFORMANCE
+    st.markdown("#### 📈 Tren Tiket Masuk")
+    trend_data = df.groupby('Bulan').size().reset_index(name='Jumlah')
+    st.area_chart(trend_data.set_index('Bulan'), height=200, color="#60a5fa")
+
     st.markdown("---")
+    # TABLE VIEW
     df['Keterangan IT'] = df['id'].apply(lambda x: st.session_state.custom_keterangan.get(str(x), "-"))
     
-    # Styling Tabel Dinamis
     def color_status(val):
         color = '#94a3b8'
         if val == 'Open': color = '#ff4b4b'
@@ -178,10 +188,9 @@ if menu == "Dashboard Monitor":
         return f'color: {color}; font-weight: bold'
 
     st.dataframe(
-        df[['id', 'nama_user', 'cabang', 'masalah', 'status', 'Waktu Input', 'Waktu Solved', 'Keterangan IT']]
+        df[['id', 'nama_user', 'cabang', 'masalah', 'status', 'Waktu Tampil', 'Waktu Solved', 'Keterangan IT']]
         .style.applymap(color_status, subset=['status']),
-        use_container_width=True, 
-        hide_index=True
+        use_container_width=True, hide_index=True
     )
 
     col_a, col_b = st.columns([1, 1])
@@ -196,7 +205,8 @@ if menu == "Dashboard Monitor":
                         if up_in and ms_in:
                             db = get_connection(); cur = db.cursor()
                             cur.execute("INSERT INTO tickets (nama_user, cabang, masalah, status, waktu) VALUES (%s,%s,%s,'Open',%s)", (up_in, cb_in, ms_in, get_wib_now().strftime('%Y-%m-%d %H:%M:%S')))
-                            add_log("INPUT TIKET", f"Tiket baru dari {up_in} ({cb_in})")
+                            add_log("INPUT TIKET", f"Tiket baru: {ms_in[:30]}...")
+                            st.toast("Tiket Berhasil Dikirim!", icon="🚀")
                             db.close(); st.rerun()
 
     with col_b:
@@ -228,7 +238,8 @@ if menu == "Dashboard Monitor":
                     
                     st.session_state.custom_keterangan[str(id_sel)] = final_ket
                     save_data('keterangan_it.json', st.session_state.custom_keterangan)
-                    add_log("UPDATE STATUS", f"Update Tiket #{id_sel} ke {st_sel}")
+                    add_log("UPDATE STATUS", f"Tiket #{id_sel} -> {st_sel}")
+                    st.toast(f"Status Tiket #{id_sel} diupdate!", icon="✅")
                     db.commit(); db.close(); st.rerun()
 
 # --- 7. MENU: MANAJEMEN USER ---
@@ -263,7 +274,7 @@ elif menu == "👥 Manajemen User":
             if st.form_submit_button("Simpan"):
                 if n_u and n_p:
                     p_list = ["Dashboard"]
-                    if i_tix: p_list.append("Input Tiket"); 
+                    if i_tix: p_list.append("Input Tiket")
                     if i_upd: p_list.append("Update Status")
                     if i_inv: p_list.append("Inventory")
                     if i_exp: p_list.append("Export")
@@ -271,8 +282,9 @@ elif menu == "👥 Manajemen User":
                     if i_sec: p_list.append("Security")
                     st.session_state.user_db[n_u] = [n_p, n_r, p_list]
                     save_data('users_it.json', st.session_state.user_db)
-                    add_log("USER MGMT", f"{'Update' if is_editing else 'Tambah'} user: {n_u}")
-                    st.success("Berhasil!"); st.rerun()
+                    add_log("USER MGMT", f"Simpan user {n_u}")
+                    st.toast(f"User {n_u} berhasil disimpan!", icon="👤")
+                    st.rerun()
 
 # --- 8. MENU LAINNYA ---
 elif menu == "📦 Inventory Spareparts":
@@ -286,8 +298,7 @@ elif menu == "Export & Reporting":
     db = get_connection(); df_ex = pd.read_sql("SELECT * FROM tickets", db); db.close()
     df_ex['Keterangan_IT'] = df_ex['id'].apply(lambda x: st.session_state.custom_keterangan.get(str(x), "-"))
     st.dataframe(df_ex, use_container_width=True)
-    if st.download_button("📥 DOWNLOAD CSV", df_ex.to_csv(index=False).encode('utf-8'), "IT_Report.csv", use_container_width=True):
-        add_log("EXPORT", "User mendownload report CSV")
+    st.download_button("📥 DOWNLOAD CSV", df_ex.to_csv(index=False).encode('utf-8'), "IT_Report.csv", use_container_width=True)
 
 elif menu == "Security Log":
     st.markdown("### 🛡️ System Audit Log")
