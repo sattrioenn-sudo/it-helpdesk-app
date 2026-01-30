@@ -234,4 +234,4 @@ elif st.session_state.current_menu == "📦 Inventory":
     try:
         from spareparts import show_sparepart_menu
         show_sparepart_menu(get_connection, get_wib_now, lambda a, d: add_log(a, d))
-    except: st.error("Data Sudah Terhapus!.")
+    except: st.error("Modul Inventory Error.")
