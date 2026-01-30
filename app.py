@@ -67,7 +67,7 @@ st.markdown("""
 
 # --- 5. LOGIC SIDEBAR ---
 with st.sidebar:
-    st.markdown("<h2 style='text-align: center; color: #60a5fa; margin-bottom: 0;'>🎫 IT-KEMASAN</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #60a5fa; margin-bottom: 0;'>🎫 IT-KEMASAN GROUP</h2>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; font-size: 11px; color: #94a3b8; margin-bottom: 15px;'>PT. Kemasan Ciptatama Sempurna</p>", unsafe_allow_html=True)
     
     t_now = get_wib_now()
