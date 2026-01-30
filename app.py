@@ -46,194 +46,207 @@ def has_access(perm):
     user_data = st.session_state.user_db.get(user, [None, None, ["Dashboard"]])
     return perm in user_data[2]
 
-# --- 4. CSS: THE "ALIVE" DESIGN ---
+# --- 4. CSS: PROFESSIONAL ENGINEERING DESIGN (STATIC) ---
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
     
-    html, body, [class*="css"] { font-family: 'Plus Jakarta Sans', sans-serif; }
+    html, body, [class*="css"] {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+    }
 
-    /* Animated Dynamic Background */
     .stApp {
-        background: linear-gradient(-45deg, #05070a, #0c0e12, #111827, #080a0f);
-        background-size: 400% 400%;
-        animation: gradient 15s ease infinite;
-    }
-    @keyframes gradient {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-    }
-
-    /* Sidebar Glassmorphism */
-    [data-testid="stSidebar"] {
-        background-color: rgba(10, 12, 16, 0.8) !important;
-        backdrop-filter: blur(12px);
-        border-right: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    /* Pulse Status Indicator */
-    .pulse-dot {
-        height: 8px; width: 8px;
-        background-color: #10b981;
-        border-radius: 50%;
-        display: inline-block;
-        box-shadow: 0 0 8px #10b981;
-        animation: pulse 2s infinite;
-        margin-right: 8px;
-    }
-    @keyframes pulse {
-        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-        70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
-        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-    }
-
-    /* Hero Text & Typing Effect */
-    .hero-container { text-align: center; padding: 100px 0; }
-    .typing-title {
-        color: #ffffff;
-        font-size: 64px;
-        font-weight: 800;
-        letter-spacing: -3px;
-        background: linear-gradient(to right, #ffffff, #60a5fa);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        background-color: #0b0e14;
+        color: #cfd8e3;
     }
     
-    /* Card Glass Effect */
-    div.stMetric {
-        background: rgba(255, 255, 255, 0.03) !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
-        border-radius: 20px !important;
-        padding: 20px !important;
-        transition: transform 0.3s ease;
+    /* Sidebar Engineering Style */
+    [data-testid="stSidebar"] {
+        background-color: #0f121a !important;
+        border-right: 1px solid #232936;
     }
-    div.stMetric:hover { transform: translateY(-5px); border-color: #60a5fa !important; }
 
-    /* Button Styling */
-    .stButton > button {
-        border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        background: rgba(255, 255, 255, 0.02);
-        color: #94a3b8;
-        padding: 12px 20px;
-        transition: all 0.3s;
-        text-align: left;
-        width: 100%;
+    /* Professional Title */
+    .brand-title {
+        font-size: 24px;
+        font-weight: 700;
+        color: #ffffff;
+        letter-spacing: -0.5px;
+        margin-bottom: 0px;
     }
+    
+    .brand-sub {
+        font-size: 10px;
+        color: #5c6b89;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        margin-bottom: 20px;
+    }
+
+    /* Metric Cards - Clean & Bordered */
+    div[data-testid="stMetric"] {
+        background-color: #141820;
+        border: 1px solid #232936;
+        border-radius: 10px;
+        padding: 15px;
+    }
+
+    /* Clean Sidebar Buttons */
+    .stButton > button {
+        width: 100% !important;
+        border-radius: 6px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: #8a99af;
+        padding: 8px 12px;
+        transition: all 0.2s;
+        text-align: left;
+        font-size: 14px;
+    }
+    
     .stButton > button:hover {
-        background: #3b82f6; color: white;
-        border-color: #60a5fa; box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+        background: #1c222d;
+        color: #ffffff;
+        border: 1px solid #323a49;
+    }
+
+    /* User Profile Card */
+    .user-profile {
+        background: #141820;
+        border: 1px solid #232936;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+
+    /* Status Label Styling */
+    .status-badge {
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 600;
     }
     </style>
     """, unsafe_allow_html=True)
 
 # --- 5. SIDEBAR ---
 with st.sidebar:
-    st.markdown("<h2 style='color: white; font-weight: 800; margin-bottom: 0;'>KCS <span style='color:#3b82f6;'>CORE</span></h2>", unsafe_allow_html=True)
-    st.markdown("<p style='font-size: 10px; color: #475569; letter-spacing: 2px;'>SYSTEM INFRASTRUCTURE</p>", unsafe_allow_html=True)
-    
-    t_now = get_wib_now()
-    st.markdown(f'''
-    <div style="background: rgba(255,255,255,0.02); padding: 15px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.05); margin: 20px 0;">
-        <div style="font-size: 10px; color: #64748b; text-transform: uppercase;">Realtime Clock</div>
-        <div style="font-family: monospace; color: #60a5fa; font-size: 20px; font-weight: bold;">{t_now.strftime("%H:%M:%S")}</div>
-        <div style="display: flex; align-items: center; margin-top: 10px;">
-            <span class="pulse-dot"></span><span style="font-size: 11px; color: #10b981;">NODE_ONLINE</span>
-        </div>
-    </div>
-    ''', unsafe_allow_html=True)
+    st.markdown('<p class="brand-title">KCS <span style="color:#3b82f6">INFRA</span></p>', unsafe_allow_html=True)
+    st.markdown('<p class="brand-sub">IT Support Terminal</p>', unsafe_allow_html=True)
 
     if st.session_state.get('logged_in'):
         u_name = st.session_state.user_name
         u_role = st.session_state.user_db.get(u_name, ["", "User"])[1]
         
         st.markdown(f'''
-        <div style="padding: 10px 0 20px 0;">
-            <div style="font-size: 10px; color: #475569; text-transform: uppercase;">Operator Identity</div>
-            <div style="font-weight: 700; color: #f8fafc; font-size: 18px;">{u_name.upper()}</div>
-            <div style="color: #60a5fa; font-size: 11px;">🛡️ {u_role}</div>
+        <div class="user-profile">
+            <div style="font-size: 10px; color: #5c6b89;">OPERATOR ACTIVE</div>
+            <div style="font-weight: 600; color: #ffffff; font-size: 15px;">{u_name.upper()}</div>
+            <div style="font-size: 11px; color: #3b82f6; margin-top: 2px;">{u_role}</div>
         </div>
         ''', unsafe_allow_html=True)
         
-        # Menu with consistent labels
-        if st.button("📊 Dashboard Overview", use_container_width=True): st.session_state.current_menu = "📊 Dashboard"
-        if has_access("Inventory") and st.button("📦 Inventory Management", use_container_width=True): st.session_state.current_menu = "📦 Inventory"
-        if has_access("User Management") and st.button("👥 System User Control", use_container_width=True): st.session_state.current_menu = "👥 User Management"
-        if has_access("Security") and st.button("🛡️ Security Audit Log", use_container_width=True): st.session_state.current_menu = "🛡️ Security"
+        # Menu Navigation
+        if st.button("📊  DASHBOARD MONITOR"): st.session_state.current_menu = "📊 Dashboard"
+        if has_access("Inventory") and st.button("📦  INVENTORY PARTS"): st.session_state.current_menu = "📦 Inventory"
+        if has_access("User Management") and st.button("👥  USER MANAGEMENT"): st.session_state.current_menu = "👥 User Management"
+        if has_access("Security") and st.button("🛡️  SECURITY LOGS"): st.session_state.current_menu = "🛡️ Security"
         
-        st.markdown("<br>"*5, unsafe_allow_html=True)
-        if st.button("🔒 Terminate Session", use_container_width=True):
+        st.markdown("<br>"*4, unsafe_allow_html=True)
+        if st.button("🔒  TERMINATE SESSION"):
             st.session_state.logged_in = False
             st.rerun()
     else:
-        st.markdown("<p style='font-size: 12px; color: #475569; text-align: center;'>IDENTIFICATION REQUIRED</p>", unsafe_allow_html=True)
+        st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
         u_in = st.text_input("Username").lower()
         p_in = st.text_input("Password", type="password")
-        if st.button("ACCESS SYSTEM", use_container_width=True):
+        if st.button("AUTHORIZE ACCESS"):
             if u_in in st.session_state.user_db and p_in == st.session_state.user_db[u_in][0]:
                 st.session_state.logged_in, st.session_state.user_name = True, u_in
                 st.rerun()
             else: st.error("Access Refused")
 
-# --- 6. WELCOME PAGE (THE "ALIVE" SCREEN) ---
+# --- 6. WELCOME PAGE ---
 if not st.session_state.get('logged_in'):
     st.markdown(f"""
-    <div class="hero-container">
-        <div style="background: #3b82f6; width: 50px; height: 4px; border-radius: 20px; margin: 0 auto 30px auto;"></div>
-        <h1 class="typing-title">Nexus Infrastructure</h1>
-        <p style="color: #475569; font-size: 18px; letter-spacing: 6px; font-weight: 300;">KEMASAN CIPTATAMA SEMPURNA</p>
-        <div style="margin-top: 40px; color: #1e293b; font-family: monospace;">SECURE_GATEWAY_V.2.6 // PORT_8501_ACTIVE</div>
+    <div style="height: 70vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
+        <h1 style="font-size: 48px; font-weight: 800; color: #ffffff; letter-spacing: -2px;">System Locked</h1>
+        <p style="color: #5c6b89; font-size: 16px; margin-top: 10px;">Please authenticate via the terminal to access IT resources.</p>
     </div>
     """, unsafe_allow_html=True)
     st.stop()
 
 # --- 7. MAIN CONTENT ---
 if st.session_state.current_menu == "📊 Dashboard":
-    st.markdown("<h2 style='font-weight: 800; letter-spacing: -1px;'>Infrastructure <span style='color:#3b82f6;'>Monitor</span></h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='font-weight: 700; color: white;'>Dashboard Overview</h2>", unsafe_allow_html=True)
     
     db = get_connection()
     df_raw = pd.read_sql("SELECT * FROM tickets ORDER BY id ASC", db)
     db.close()
 
+    # Metrics Row
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Current Traffic", f"{len(df_raw)} Units")
-    m2.metric("Critical State", len(df_raw[df_raw['status'] == 'Open']), delta="Active", delta_color="inverse")
-    m3.metric("In Progress", len(df_raw[df_raw['status'] == 'In Progress']))
-    m4.metric("System Solved", len(df_raw[df_raw['status'] == 'Solved']))
+    m1.metric("Total Tickets", len(df_raw))
+    m2.metric("Open Issue", len(df_raw[df_raw['status'] == 'Open']))
+    m3.metric("Processing", len(df_raw[df_raw['status'] == 'In Progress']))
+    m4.metric("Completed", len(df_raw[df_raw['status'] == 'Solved']))
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
     
-    # Filter & Table with Neon Accent
-    st.markdown('<div style="background: rgba(255,255,255,0.01); padding: 25px; border-radius: 25px; border: 1px solid rgba(255,255,255,0.05);">', unsafe_allow_html=True)
-    
+    # Filter Section - DISET DEFAULT LUAS SUPAYA DATA TIDAK HILANG
+    st.markdown("### Data Explorer")
     c_f1, c_f2 = st.columns(2)
-    d_start = c_f1.date_input("Filter Since", value=datetime.now() - timedelta(days=30))
-    d_end = c_f2.date_input("Filter Until", value=datetime.now())
+    # Default mulai dari tahun 2020 supaya data lama tetap muncul
+    d_start = c_f1.date_input("Filter Date From", value=datetime(2020, 1, 1))
+    d_end = c_f2.date_input("Filter Date To", value=datetime.now())
 
     df_raw['tgl_saja'] = pd.to_datetime(df_raw['waktu']).dt.date
     df = df_raw[(df_raw['tgl_saja'] >= d_start) & (df_raw['tgl_saja'] <= d_end)].copy()
     df = df.reset_index(drop=True)
-    df.insert(0, 'No', range(1, len(df) + 1)) 
-    df['IT_Notes'] = df['id'].apply(lambda x: st.session_state.custom_keterangan.get(str(x), "-"))
+    df.insert(0, 'ID Ticket', range(1, len(df) + 1)) 
+    df['IT Notes'] = df['id'].apply(lambda x: st.session_state.custom_keterangan.get(str(x), "-"))
     
-    def status_styler(val):
-        color = {'Open': '#f87171', 'In Progress': '#fbbf24', 'Solved': '#34d399'}.get(val, 'white')
-        return f'color: {color}; font-weight: 800;'
+    def color_status_only(val):
+        c = {'Open': '#ff4b4b', 'In Progress': '#ffa500', 'Solved': '#00c853'}
+        return f'color: {c.get(val, "white")}; font-weight: 700;'
 
     st.dataframe(
-        df[['No', 'nama_user', 'cabang', 'masalah', 'status', 'waktu', 'IT_Notes']].style.map(status_styler, subset=['status']), 
-        use_container_width=True, hide_index=True
+        df[['ID Ticket', 'nama_user', 'cabang', 'masalah', 'status', 'waktu', 'IT Notes']].style.map(color_status_only, subset=['status']), 
+        use_container_width=True, 
+        hide_index=True
     )
-    st.markdown('</div>', unsafe_allow_html=True)
 
-    if has_access("Export"):
-        st.download_button("📥 GENERATE DATA REPORT", df.to_csv(index=False).encode('utf-8'), "IT_Core_Report.csv", use_container_width=True)
-
-    # Input & Update Logic (Functions remain unchanged)
+    # Actions Section
+    st.markdown("---")
     c_a, c_b = st.columns(2)
     with c_a:
         if has_access("Input Tiket"):
-            with st.expander("➕ Open System Ticket"):
-                # Form and SQL logic remains exactly the same...
-                pass
+            with st.expander("➕ CREATE NEW TICKET"):
+                with st.form("new_tix"):
+                    un = st.text_input("Requester Name")
+                    cb = st.selectbox("Branch", st.secrets["master"]["daftar_cabang"])
+                    ms = st.text_area("Issue Detail")
+                    if st.form_submit_button("Submit to Database"):
+                        db = get_connection(); cur = db.cursor()
+                        cur.execute("INSERT INTO tickets (nama_user, cabang, masalah, status, waktu) VALUES (%s,%s,%s,'Open',%s)", (un, cb, ms, get_wib_now()))
+                        db.close(); st.success("Data Saved Successfully"); st.rerun()
+    with c_b:
+        if has_access("Update Status"):
+            with st.expander("🛠️ UPDATE TICKET STATUS"):
+                tix_list = {f"#{row['ID Ticket']} - {row['nama_user']}": row['id'] for _, row in df.iterrows()}
+                if tix_list:
+                    sel_label = st.selectbox("Select Target Ticket", list(tix_list.keys()))
+                    sel_id = tix_list[sel_label]
+                    new_st = st.selectbox("Assign New Status", ["Open", "In Progress", "Solved", "Closed"])
+                    cat_it = st.text_input("IT Remarks", value=st.session_state.custom_keterangan.get(str(sel_id), ""))
+                    if st.button("Commit Changes", use_container_width=True):
+                        db = get_connection(); cur = db.cursor()
+                        cur.execute("UPDATE tickets SET status=%s WHERE id=%s", (new_st, sel_id))
+                        st.session_state.custom_keterangan[str(sel_id)] = cat_it
+                        save_data('keterangan_it.json', st.session_state.custom_keterangan)
+                        db.commit(); db.close(); st.success("Update Successful"); st.rerun()
+
+    if has_access("Export"):
+        st.download_button("📥 EXPORT DATA TO CSV", df.to_csv(index=False).encode('utf-8'), "IT_Data_Report.csv", use_container_width=True)
+
+# ... (Menu lain tetap ada namun tersembunyi sesuai hak akses)
