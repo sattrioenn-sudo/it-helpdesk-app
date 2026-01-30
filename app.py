@@ -7,7 +7,7 @@ import os
 from datetime import datetime, timedelta
 
 # --- 1. KONFIGURASI & THEME ---
-st.set_page_config(page_title="IT Kemasan Pro", page_icon="🎫", layout="wide")
+st.set_page_config(page_title="IT Kemasan", page_icon="🎫", layout="wide")
 
 # --- 2. STORAGE VIRTUAL ---
 def load_data(file, default):
@@ -67,7 +67,7 @@ st.markdown("""
 
 # --- 5. LOGIC SIDEBAR ---
 with st.sidebar:
-    st.markdown("<h2 style='text-align: center; color: #60a5fa;'>🎫 IT-KEMASAN</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #60a5fa;'>🎫 IT-KEMASAN GROUP</h2>", unsafe_allow_html=True)
     wib = get_wib_now()
     st.markdown(f'''<div class="clock-inner"><div class="digital-clock">{wib.strftime("%H:%M:%S")}</div><div style="color: #94a3b8; font-size: 11px;">{wib.strftime("%A, %d %b %Y")}</div></div>''', unsafe_allow_html=True)
 
