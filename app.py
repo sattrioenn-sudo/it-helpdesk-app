@@ -70,14 +70,8 @@ with st.sidebar:
     st.markdown("<h2 style='text-align: center; color: #60a5fa; margin-bottom: 0;'>🎫 IT-KEMASAN</h2>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; font-size: 11px; color: #94a3b8; margin-bottom: 15px;'>PT. Kemasan Ciptatama Sempurna</p>", unsafe_allow_html=True)
     
-    # --- JAM DIGITAL ---
     t_now = get_wib_now()
-    st.markdown(f"""
-    <div class="clock-box">
-        <div class="digital-clock">{t_now.strftime("%H:%M:%S")}</div>
-        <div style="font-size: 10px; color: #94a3b8;">{t_now.strftime("%A, %d %b %Y")}</div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f'<div class="clock-box"><div class="digital-clock">{t_now.strftime("%H:%M:%S")}</div><div style="font-size: 10px; color: #94a3b8;">{t_now.strftime("%A, %d %b %Y")}</div></div>', unsafe_allow_html=True)
 
     if st.session_state.get('logged_in'):
         u_name = st.session_state.user_name
@@ -107,14 +101,11 @@ if st.session_state.current_menu == "📊 Dashboard":
     st.markdown("### 📊 IT Support Dashboard")
     db = get_connection()
     df_raw = pd.read_sql("SELECT * FROM tickets ORDER BY id ASC", db)
-    # Silent Check for Inventory
     try:
         df_stok = pd.read_sql("SELECT nama_part, kode_part, kategori, SUM(jumlah) as total FROM spareparts WHERE keterangan LIKE '%%[APPROVED]%%' GROUP BY nama_part, kode_part, kategori HAVING total > 0", db)
-    except:
-        df_stok = pd.DataFrame()
+    except: df_stok = pd.DataFrame()
     db.close()
 
-    # Metrics
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Total Tiket", len(df_raw))
     m2.metric("🔴 Open", len(df_raw[df_raw['status'] == 'Open']))
@@ -140,6 +131,10 @@ if st.session_state.current_menu == "📊 Dashboard":
 
     st.dataframe(df[['ID Ticket', 'nama_user', 'cabang', 'masalah', 'status', 'waktu', 'Keterangan IT']].style.map(color_status_only, subset=['status']), use_container_width=True, hide_index=True)
 
+    # --- FUNGSI EXPORT (KEMBALI KE POSISI) ---
+    if has_access("Export"):
+        st.download_button("📥 DOWNLOAD REPORT CSV", df.to_csv(index=False).encode('utf-8'), "IT_Report.csv", use_container_width=True)
+
     c_a, c_b = st.columns(2)
     with c_a:
         if has_access("Input Tiket"):
@@ -159,7 +154,6 @@ if st.session_state.current_menu == "📊 Dashboard":
                     sel_label = st.selectbox("Pilih Tiket", list(tix_list.keys()))
                     sel_id = tix_list[sel_label]
                     new_st = st.selectbox("Status Baru", ["Open", "In Progress", "Solved", "Closed"])
-                    
                     pakai_sp = st.checkbox("Gunakan Sparepart?")
                     sp_data, qty = None, 0
                     if pakai_sp and not df_stok.empty:
@@ -167,7 +161,6 @@ if st.session_state.current_menu == "📊 Dashboard":
                         pilih_sp = st.selectbox("Pilih Barang", df_stok['opt'].tolist())
                         sp_data = df_stok[df_stok['opt'] == pilih_sp].iloc[0]
                         qty = st.number_input(f"Jumlah (Stok: {int(sp_data['total'])})", 1, int(sp_data['total']), 1)
-                    
                     cat_it = st.text_input("Catatan IT", value=st.session_state.custom_keterangan.get(str(sel_id), ""))
                     if st.button("Simpan Update", use_container_width=True):
                         db = get_connection(); cur = db.cursor()
@@ -180,14 +173,14 @@ if st.session_state.current_menu == "📊 Dashboard":
                         save_data('keterangan_it.json', st.session_state.custom_keterangan)
                         db.commit(); db.close(); st.rerun()
 
+# --- 7. MENU: USER MANAGEMENT (FULL) ---
 elif st.session_state.current_menu == "👥 User Management":
     st.markdown("### 👥 User Access Management")
     user_options = list(st.session_state.user_db.keys())
     sel_user = st.selectbox("🔍 Pilih User", ["-- Tambah Baru --"] + user_options)
     v_pass, v_role, v_perms, is_edit = "", "", ["Dashboard"], False
     if sel_user != "-- Tambah Baru --":
-        d = st.session_state.user_db[sel_user]
-        v_pass, v_role, v_perms, is_edit = d[0], d[1], d[2], True
+        d = st.session_state.user_db[sel_user]; v_pass, v_role, v_perms, is_edit = d[0], d[1], d[2], True
     with st.form("u_form"):
         n_u = st.text_input("Username", value=sel_user if is_edit else "").lower()
         n_p, n_r = st.text_input("Password", value=v_pass), st.text_input("Role", value=v_role)
@@ -196,12 +189,19 @@ elif st.session_state.current_menu == "👥 User Management":
         new_perms = [p for i, p in enumerate(perms) if cols[i%2].checkbox(p, value=p in v_perms)]
         if st.form_submit_button("Simpan"):
             st.session_state.user_db[n_u] = [n_p, n_r, new_perms]
-            save_data('users_it.json', st.session_state.user_db)
-            st.rerun()
+            save_data('users_it.json', st.session_state.user_db); st.rerun()
 
+# --- 8. MENU: SECURITY (KEMBALI) ---
+elif st.session_state.current_menu == "🛡️ Security":
+    st.markdown("### 🛡️ Security Audit Log")
+    if st.session_state.security_logs:
+        st.dataframe(pd.DataFrame(st.session_state.security_logs), use_container_width=True)
+    else:
+        st.info("Belum ada log aktivitas.")
+
+# --- 9. MENU: INVENTORY ---
 elif st.session_state.current_menu == "📦 Inventory":
     try:
         from spareparts import show_sparepart_menu
         show_sparepart_menu(get_connection, get_wib_now, lambda a, d: add_log(a, d))
-    except ImportError:
-        pass # Tidak menampilkan error jika file tidak ada
+    except: pass
