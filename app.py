@@ -57,8 +57,27 @@ st.markdown("""
     <style>
     .stApp { background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%); }
     [data-testid="stMetric"] { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 20px; backdrop-filter: blur(10px); }
-    .stButton > button { width: 100%; border-radius: 12px; border: 1px solid rgba(96, 165, 250, 0.2); background: rgba(255, 255, 255, 0.05); color: #e2e8f0; padding: 10px 20px; transition: all 0.3s; text-align: left; margin-bottom: 5px; }
-    .stButton > button:hover { background: rgba(96, 165, 250, 0.15); border-color: #60a5fa; color: #ffffff; box-shadow: 0 0 15px rgba(96, 165, 250, 0.3); transform: translateX(5px); }
+    
+    /* Tombol Seragam */
+    .stButton > button { 
+        width: 100% !important; 
+        border-radius: 12px; 
+        border: 1px solid rgba(96, 165, 250, 0.2); 
+        background: rgba(255, 255, 255, 0.05); 
+        color: #e2e8f0; 
+        padding: 10px 20px; 
+        transition: all 0.3s; 
+        text-align: left; 
+        margin-bottom: 5px; 
+    }
+    .stButton > button:hover { 
+        background: rgba(96, 165, 250, 0.15); 
+        border-color: #60a5fa; 
+        color: #ffffff; 
+        box-shadow: 0 0 15px rgba(96, 165, 250, 0.3); 
+        transform: translateX(5px); 
+    }
+    
     div[data-testid="stDataFrame"] { background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(96, 165, 250, 0.2); border-radius: 15px; padding: 10px; }
     .user-profile { background: rgba(255, 255, 255, 0.05); padding: 12px; border-radius: 12px; border-left: 4px solid #60a5fa; margin-bottom: 20px; }
     .filter-section { background: rgba(255, 255, 255, 0.02); padding: 15px; border-radius: 15px; border: 1px dashed rgba(96, 165, 250, 0.3); margin: 15px 0; }
@@ -67,30 +86,38 @@ st.markdown("""
 
 # --- 5. LOGIC SIDEBAR ---
 with st.sidebar:
-    st.markdown("<h2 style='text-align: center; color: #60a5fa;'>🎫 IT-KEMASAN</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #60a5fa; margin-bottom: 0;'>🎫 IT-KEMASAN</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-size: 11px; color: #94a3b8; margin-bottom: 20px;'>PT. Kemasan Ciptatama Sempurna</p>", unsafe_allow_html=True)
     
     if st.session_state.get('logged_in'):
         u_name = st.session_state.user_name
         u_role = st.session_state.user_db.get(u_name, ["", "User"])[1]
-        st.markdown(f'''<div class="user-profile"><div style="font-size: 12px; color: #94a3b8;">User</div><div style="font-weight: bold;">{u_name.upper()}</div><div style="font-size: 11px; color: #60a5fa;">🛡️ {u_role}</div></div>''', unsafe_allow_html=True)
+        st.markdown(f'''<div class="user-profile"><div style="font-size: 12px; color: #94a3b8;">Active User</div><div style="font-weight: bold;">{u_name.upper()}</div><div style="font-size: 11px; color: #60a5fa;">🛡️ {u_role}</div></div>''', unsafe_allow_html=True)
         
-        # Tombol Sidebar Rapi
-        if st.button("📊 Dashboard Monitor"): st.session_state.current_menu = "📊 Dashboard"
+        # Semua tombol pakai use_container_width agar seragam
+        if st.button("📊 Dashboard Monitor", use_container_width=True): 
+            st.session_state.current_menu = "📊 Dashboard"
+        
         if has_access("Inventory"):
-            if st.button("📦 Inventory Spareparts"): st.session_state.current_menu = "📦 Inventory"
+            if st.button("📦 Inventory Spareparts", use_container_width=True): 
+                st.session_state.current_menu = "📦 Inventory"
+        
         if has_access("User Management"):
-            if st.button("👥 Manajemen User"): st.session_state.current_menu = "👥 User Management"
+            if st.button("👥 Manajemen User", use_container_width=True): 
+                st.session_state.current_menu = "👥 User Management"
+        
         if has_access("Security"):
-            if st.button("🛡️ Security Log"): st.session_state.current_menu = "🛡️ Security"
+            if st.button("🛡️ Security Log", use_container_width=True): 
+                st.session_state.current_menu = "🛡️ Security"
         
         st.markdown("---")
-        if st.button("🔒 Logout System"):
+        if st.button("🔒 Logout System", use_container_width=True):
             st.session_state.logged_in = False
             st.rerun()
     else:
         u_in = st.text_input("Username").lower()
         p_in = st.text_input("Password", type="password")
-        if st.button("🔓 LOGIN"):
+        if st.button("🔓 LOGIN", use_container_width=True):
             if u_in in st.session_state.user_db and p_in == st.session_state.user_db[u_in][0]:
                 st.session_state.logged_in, st.session_state.user_name = True, u_in
                 st.rerun()
@@ -155,7 +182,6 @@ if st.session_state.current_menu == "📊 Dashboard":
                     sel_id = tix_list[sel_label]
                     new_st = st.selectbox("Status Baru", ["Open", "In Progress", "Solved", "Closed"])
                     
-                    # FUNGSI SPAREPART (DIBERSIHKAN)
                     pakai_sp = st.checkbox("Gunakan Sparepart?")
                     sp_data, qty = None, 0
                     if pakai_sp and not df_stok.empty:
@@ -165,7 +191,7 @@ if st.session_state.current_menu == "📊 Dashboard":
                         qty = st.number_input(f"Jumlah (Stok: {int(sp_data['total'])})", 1, int(sp_data['total']), 1)
                     
                     cat_it = st.text_input("Catatan IT", value=st.session_state.custom_keterangan.get(str(sel_id), ""))
-                    if st.button("Simpan Update"):
+                    if st.button("Simpan Update", use_container_width=True):
                         db = get_connection(); cur = db.cursor()
                         cur.execute("UPDATE tickets SET status=%s WHERE id=%s", (new_st, sel_id))
                         final_ket = cat_it
@@ -180,7 +206,7 @@ if st.session_state.current_menu == "📊 Dashboard":
 elif st.session_state.current_menu == "👥 User Management":
     st.markdown("### 👥 User Access Management")
     user_options = list(st.session_state.user_db.keys())
-    sel_user = st.selectbox("🔍 Pilih User untuk Diedit", ["-- Tambah User Baru --"] + user_options)
+    sel_user = st.selectbox("🔍 Pilih User", ["-- Tambah User Baru --"] + user_options)
     v_pass, v_role, v_perms, is_edit = "", "", ["Dashboard"], False
     if sel_user != "-- Tambah User Baru --":
         d = st.session_state.user_db[sel_user]
@@ -191,28 +217,21 @@ elif st.session_state.current_menu == "👥 User Management":
         n_p, n_r = st.text_input("Password", value=v_pass), st.text_input("Role", value=v_role)
         st.write("Izin Akses:")
         c1, c2 = st.columns(2)
-        i1 = c1.checkbox("Dashboard", value="Dashboard" in v_perms)
-        i2 = c1.checkbox("Input Tiket", value="Input Tiket" in v_perms)
-        i3 = c1.checkbox("Update Status", value="Update Status" in v_perms)
-        i4 = c2.checkbox("Inventory", value="Inventory" in v_perms)
-        i5 = c2.checkbox("Export", value="Export" in v_perms)
-        i6 = c2.checkbox("User Management", value="User Management" in v_perms)
-        i7 = c2.checkbox("Security", value="Security" in v_perms)
+        i1, i2, i3 = c1.checkbox("Dashboard", value="Dashboard" in v_perms), c1.checkbox("Input Tiket", value="Input Tiket" in v_perms), c1.checkbox("Update Status", value="Update Status" in v_perms)
+        i4, i5, i6, i7 = c2.checkbox("Inventory", value="Inventory" in v_perms), c2.checkbox("Export", value="Export" in v_perms), c2.checkbox("User Management", value="User Management" in v_perms), c2.checkbox("Security", value="Security" in v_perms)
         
-        if st.form_submit_button("Simpan User"):
+        if st.form_submit_button("Simpan User", use_container_width=True):
             new_perms = [p for p, val in zip(["Dashboard", "Input Tiket", "Update Status", "Inventory", "Export", "User Management", "Security"], [i1, i2, i3, i4, i5, i6, i7]) if val]
             st.session_state.user_db[n_u] = [n_p, n_r, new_perms]
             save_data('users_it.json', st.session_state.user_db)
             st.rerun()
 
-# --- 8. MENU: SECURITY ---
 elif st.session_state.current_menu == "🛡️ Security":
     st.markdown("### 🛡️ Security Audit Log")
     st.dataframe(pd.DataFrame(st.session_state.security_logs), use_container_width=True)
 
-# --- 9. MENU: INVENTORY ---
 elif st.session_state.current_menu == "📦 Inventory":
     try:
         from spareparts import show_sparepart_menu
         show_sparepart_menu(get_connection, get_wib_now, lambda a, d: add_log(a, d))
-    except: st.error("Modul Inventory Error. Pastikan file spareparts.py ada.")
+    except: st.error("Modul Inventory Error.")
