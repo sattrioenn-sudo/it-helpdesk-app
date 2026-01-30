@@ -20,7 +20,6 @@ def load_data(file, default):
 def save_data(file, data):
     with open(file, 'w') as f: json.dump(data, f)
 
-# Inisialisasi State
 if 'custom_keterangan' not in st.session_state:
     st.session_state.custom_keterangan = load_data('keterangan_it.json', {})
 if 'user_db' not in st.session_state:
@@ -57,28 +56,10 @@ st.markdown("""
     <style>
     .stApp { background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%); }
     [data-testid="stMetric"] { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 20px; backdrop-filter: blur(10px); }
-    
-    /* Tombol Seragam */
-    .stButton > button { 
-        width: 100% !important; 
-        border-radius: 12px; 
-        border: 1px solid rgba(96, 165, 250, 0.2); 
-        background: rgba(255, 255, 255, 0.05); 
-        color: #e2e8f0; 
-        padding: 10px 20px; 
-        transition: all 0.3s; 
-        text-align: left; 
-        margin-bottom: 5px; 
-    }
-    .stButton > button:hover { 
-        background: rgba(96, 165, 250, 0.15); 
-        border-color: #60a5fa; 
-        color: #ffffff; 
-        box-shadow: 0 0 15px rgba(96, 165, 250, 0.3); 
-        transform: translateX(5px); 
-    }
-    
-    div[data-testid="stDataFrame"] { background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(96, 165, 250, 0.2); border-radius: 15px; padding: 10px; }
+    .stButton > button { width: 100% !important; border-radius: 12px; border: 1px solid rgba(96, 165, 250, 0.2); background: rgba(255, 255, 255, 0.05); color: #e2e8f0; padding: 10px 20px; transition: all 0.3s; text-align: left; margin-bottom: 5px; }
+    .stButton > button:hover { background: rgba(96, 165, 250, 0.15); border-color: #60a5fa; color: #ffffff; box-shadow: 0 0 15px rgba(96, 165, 250, 0.3); transform: translateX(5px); }
+    .clock-box { background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 15px; padding: 10px; text-align: center; margin-bottom: 20px; }
+    .digital-clock { font-family: 'monospace'; color: #60a5fa; font-size: 24px; font-weight: bold; }
     .user-profile { background: rgba(255, 255, 255, 0.05); padding: 12px; border-radius: 12px; border-left: 4px solid #60a5fa; margin-bottom: 20px; }
     .filter-section { background: rgba(255, 255, 255, 0.02); padding: 15px; border-radius: 15px; border: 1px dashed rgba(96, 165, 250, 0.3); margin: 15px 0; }
     </style>
@@ -87,36 +68,33 @@ st.markdown("""
 # --- 5. LOGIC SIDEBAR ---
 with st.sidebar:
     st.markdown("<h2 style='text-align: center; color: #60a5fa; margin-bottom: 0;'>🎫 IT-KEMASAN</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; font-size: 11px; color: #94a3b8; margin-bottom: 20px;'>PT. Kemasan Ciptatama Sempurna</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-size: 11px; color: #94a3b8; margin-bottom: 15px;'>PT. Kemasan Ciptatama Sempurna</p>", unsafe_allow_html=True)
     
+    # --- JAM DIGITAL ---
+    t_now = get_wib_now()
+    st.markdown(f"""
+    <div class="clock-box">
+        <div class="digital-clock">{t_now.strftime("%H:%M:%S")}</div>
+        <div style="font-size: 10px; color: #94a3b8;">{t_now.strftime("%A, %d %b %Y")}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
     if st.session_state.get('logged_in'):
         u_name = st.session_state.user_name
         u_role = st.session_state.user_db.get(u_name, ["", "User"])[1]
-        st.markdown(f'''<div class="user-profile"><div style="font-size: 12px; color: #94a3b8;">Active User</div><div style="font-weight: bold;">{u_name.upper()}</div><div style="font-size: 11px; color: #60a5fa;">🛡️ {u_role}</div></div>''', unsafe_allow_html=True)
+        st.markdown(f'''<div class="user-profile"><div style="font-size: 12px; color: #94a3b8;">User</div><div style="font-weight: bold;">{u_name.upper()}</div><div style="font-size: 11px; color: #60a5fa;">🛡️ {u_role}</div></div>''', unsafe_allow_html=True)
         
-        # Semua tombol pakai use_container_width agar seragam
-        if st.button("📊 Dashboard Monitor", use_container_width=True): 
-            st.session_state.current_menu = "📊 Dashboard"
-        
-        if has_access("Inventory"):
-            if st.button("📦 Inventory Spareparts", use_container_width=True): 
-                st.session_state.current_menu = "📦 Inventory"
-        
-        if has_access("User Management"):
-            if st.button("👥 Manajemen User", use_container_width=True): 
-                st.session_state.current_menu = "👥 User Management"
-        
-        if has_access("Security"):
-            if st.button("🛡️ Security Log", use_container_width=True): 
-                st.session_state.current_menu = "🛡️ Security"
+        if st.button("📊 Dashboard Monitor", use_container_width=True): st.session_state.current_menu = "📊 Dashboard"
+        if has_access("Inventory") and st.button("📦 Inventory Spareparts", use_container_width=True): st.session_state.current_menu = "📦 Inventory"
+        if has_access("User Management") and st.button("👥 Manajemen User", use_container_width=True): st.session_state.current_menu = "👥 User Management"
+        if has_access("Security") and st.button("🛡️ Security Log", use_container_width=True): st.session_state.current_menu = "🛡️ Security"
         
         st.markdown("---")
         if st.button("🔒 Logout System", use_container_width=True):
             st.session_state.logged_in = False
             st.rerun()
     else:
-        u_in = st.text_input("Username").lower()
-        p_in = st.text_input("Password", type="password")
+        u_in, p_in = st.text_input("Username").lower(), st.text_input("Password", type="password")
         if st.button("🔓 LOGIN", use_container_width=True):
             if u_in in st.session_state.user_db and p_in == st.session_state.user_db[u_in][0]:
                 st.session_state.logged_in, st.session_state.user_name = True, u_in
@@ -129,7 +107,11 @@ if st.session_state.current_menu == "📊 Dashboard":
     st.markdown("### 📊 IT Support Dashboard")
     db = get_connection()
     df_raw = pd.read_sql("SELECT * FROM tickets ORDER BY id ASC", db)
-    df_stok = pd.read_sql("SELECT nama_part, kode_part, kategori, SUM(jumlah) as total FROM spareparts WHERE keterangan LIKE '%%[APPROVED]%%' GROUP BY nama_part, kode_part, kategori HAVING total > 0", db)
+    # Silent Check for Inventory
+    try:
+        df_stok = pd.read_sql("SELECT nama_part, kode_part, kategori, SUM(jumlah) as total FROM spareparts WHERE keterangan LIKE '%%[APPROVED]%%' GROUP BY nama_part, kode_part, kategori HAVING total > 0", db)
+    except:
+        df_stok = pd.DataFrame()
     db.close()
 
     # Metrics
@@ -148,25 +130,21 @@ if st.session_state.current_menu == "📊 Dashboard":
 
     df_raw['tgl_saja'] = pd.to_datetime(df_raw['waktu']).dt.date
     df = df_raw[(df_raw['tgl_saja'] >= d_start) & (df_raw['tgl_saja'] <= d_end)].copy()
-
     df = df.reset_index(drop=True)
     df.insert(0, 'ID Ticket', range(1, len(df) + 1)) 
     df['Keterangan IT'] = df['id'].apply(lambda x: st.session_state.custom_keterangan.get(str(x), "-"))
     
     def color_status_only(val):
-        colors = {'Open': '#ff4b4b', 'In Progress': '#ffa500', 'Solved': '#00c853'}
-        return f'color: {colors.get(val, "white")}; font-weight: bold;'
+        c = {'Open': '#ff4b4b', 'In Progress': '#ffa500', 'Solved': '#00c853'}
+        return f'color: {c.get(val, "white")}; font-weight: bold;'
 
     st.dataframe(df[['ID Ticket', 'nama_user', 'cabang', 'masalah', 'status', 'waktu', 'Keterangan IT']].style.map(color_status_only, subset=['status']), use_container_width=True, hide_index=True)
-    
-    if has_access("Export"):
-        st.download_button("📥 DOWNLOAD CSV", df.to_csv(index=False).encode('utf-8'), "IT_Report.csv", use_container_width=True)
 
     c_a, c_b = st.columns(2)
     with c_a:
         if has_access("Input Tiket"):
             with st.expander("➕ Input Tiket Baru"):
-                with st.form("new_tix", clear_on_submit=True):
+                with st.form("new_tix"):
                     un, cb = st.text_input("Nama Pelapor"), st.selectbox("Cabang", st.secrets["master"]["daftar_cabang"])
                     ms = st.text_area("Masalah")
                     if st.form_submit_button("Submit"):
@@ -185,7 +163,7 @@ if st.session_state.current_menu == "📊 Dashboard":
                     pakai_sp = st.checkbox("Gunakan Sparepart?")
                     sp_data, qty = None, 0
                     if pakai_sp and not df_stok.empty:
-                        df_stok['opt'] = df_stok['nama_part'] + " | S/N: " + df_stok['kode_part']
+                        df_stok['opt'] = df_stok['nama_part'] + " | " + df_stok['kode_part']
                         pilih_sp = st.selectbox("Pilih Barang", df_stok['opt'].tolist())
                         sp_data = df_stok[df_stok['opt'] == pilih_sp].iloc[0]
                         qty = st.number_input(f"Jumlah (Stok: {int(sp_data['total'])})", 1, int(sp_data['total']), 1)
@@ -202,36 +180,28 @@ if st.session_state.current_menu == "📊 Dashboard":
                         save_data('keterangan_it.json', st.session_state.custom_keterangan)
                         db.commit(); db.close(); st.rerun()
 
-# --- 7. MENU: USER MANAGEMENT ---
 elif st.session_state.current_menu == "👥 User Management":
     st.markdown("### 👥 User Access Management")
     user_options = list(st.session_state.user_db.keys())
-    sel_user = st.selectbox("🔍 Pilih User", ["-- Tambah User Baru --"] + user_options)
+    sel_user = st.selectbox("🔍 Pilih User", ["-- Tambah Baru --"] + user_options)
     v_pass, v_role, v_perms, is_edit = "", "", ["Dashboard"], False
-    if sel_user != "-- Tambah User Baru --":
+    if sel_user != "-- Tambah Baru --":
         d = st.session_state.user_db[sel_user]
         v_pass, v_role, v_perms, is_edit = d[0], d[1], d[2], True
-
-    with st.form("user_form"):
-        n_u = st.text_input("Username", value=sel_user if is_edit else "", disabled=is_edit).lower()
+    with st.form("u_form"):
+        n_u = st.text_input("Username", value=sel_user if is_edit else "").lower()
         n_p, n_r = st.text_input("Password", value=v_pass), st.text_input("Role", value=v_role)
-        st.write("Izin Akses:")
-        c1, c2 = st.columns(2)
-        i1, i2, i3 = c1.checkbox("Dashboard", value="Dashboard" in v_perms), c1.checkbox("Input Tiket", value="Input Tiket" in v_perms), c1.checkbox("Update Status", value="Update Status" in v_perms)
-        i4, i5, i6, i7 = c2.checkbox("Inventory", value="Inventory" in v_perms), c2.checkbox("Export", value="Export" in v_perms), c2.checkbox("User Management", value="User Management" in v_perms), c2.checkbox("Security", value="Security" in v_perms)
-        
-        if st.form_submit_button("Simpan User", use_container_width=True):
-            new_perms = [p for p, val in zip(["Dashboard", "Input Tiket", "Update Status", "Inventory", "Export", "User Management", "Security"], [i1, i2, i3, i4, i5, i6, i7]) if val]
+        perms = ["Dashboard", "Input Tiket", "Update Status", "Inventory", "Export", "User Management", "Security"]
+        cols = st.columns(2)
+        new_perms = [p for i, p in enumerate(perms) if cols[i%2].checkbox(p, value=p in v_perms)]
+        if st.form_submit_button("Simpan"):
             st.session_state.user_db[n_u] = [n_p, n_r, new_perms]
             save_data('users_it.json', st.session_state.user_db)
             st.rerun()
-
-elif st.session_state.current_menu == "🛡️ Security":
-    st.markdown("### 🛡️ Security Audit Log")
-    st.dataframe(pd.DataFrame(st.session_state.security_logs), use_container_width=True)
 
 elif st.session_state.current_menu == "📦 Inventory":
     try:
         from spareparts import show_sparepart_menu
         show_sparepart_menu(get_connection, get_wib_now, lambda a, d: add_log(a, d))
-    except: st.error("Modul Inventory Error.")
+    except ImportError:
+        pass # Tidak menampilkan error jika file tidak ada
